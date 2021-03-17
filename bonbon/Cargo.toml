@@ -1,0 +1,12 @@
+[package]
+name = "bonbon"
+version = "0.1.0"
+authors = ["Simeon Ricking <simeon.ricking@posteo.de>"]
+edition = "2018"
+
+[dependencies]
+argon2 = "0.1"
+rand = "0.8"
+sled = "0.34"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
