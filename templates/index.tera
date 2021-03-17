@@ -1,0 +1,16 @@
+
+<head>
+    <title>Public Files - Kasten</title>
+</head>
+<body>
+    <h3>Public Files</h3>
+
+	<h4>Logged in as: {{ USERNAME }}</h4>
+
+    <ul>
+    {% for fsnode_name in FILES %}
+        <li>{{fsnode_name}}</li>
+    {% endfor %}
+    </ul>
+
+</body>

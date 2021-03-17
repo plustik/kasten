@@ -1,0 +1,22 @@
+[package]
+name = "kasten"
+version = "0.1.0"
+authors = ["Simeon"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+argon2 = "0.1"
+rand_core = { version = "0.6", features = ["std"] }
+rocket = "0.4.7"
+sled = "0.34"
+tera = "1.5.0"
+
+[dependencies.rocket_contrib]
+version = "0.4.5"
+default-features = false
+features = ["tera_templates"]
+
+[workspace]
+members = ["bonbon"]
