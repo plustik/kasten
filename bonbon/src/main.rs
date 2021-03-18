@@ -14,8 +14,11 @@ fn main() {
         "userlist" => {
             user::userlist(args);
         }
+        "userrm" => {
+            user::userrm(args);
+        }
         _ => {
-            println!("COMMANDS:\n'useradd'\n'userlist'");
+            println!("COMMANDS:\n'useradd'\n'userlist'\n'userrm'");
         }
     }
 }

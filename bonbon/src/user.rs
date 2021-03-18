@@ -5,7 +5,7 @@ use argon2::{
 use rand::{thread_rng, RngCore};
 use sled::{
     transaction::{ConflictableTransactionResult, UnabortableTransactionError},
-    Db, Transactional,
+    Db, IVec, Transactional,
 };
 
 use std::{convert::TryInto, path::PathBuf, string::String};
@@ -136,6 +136,128 @@ pub fn userlist(args: Vec<String>) {
             }
             Err(e) => {
                 println!("Error while reading from DB:\n{}", e);
+                return;
+            }
+        }
+    }
+}
+
+pub fn userrm(args: Vec<String>) {
+    if args.len() < 4 {
+        println!("Usage: bonbon userrm <db-location> <user-id>");
+        return;
+    }
+
+    let user_id = if let Ok(v) = u64::from_str_radix(args[3].as_str(), 10) {
+        v
+    } else {
+        println!("The given user-id was not a number.");
+        println!("Usage: bonbon userrm <db-location> <user-id>");
+        return;
+    };
+
+    let sled_db = match open_db(args[2].as_str()) {
+        Ok(v) => v,
+        Err(e) => {
+            println!("{}", e);
+            return;
+        }
+    };
+    let username_id_tree = sled_db
+        .open_tree(b"usernames_ids")
+        .expect("Could not open userids tree.");
+    let userid_name_tree = sled_db
+        .open_tree(b"userids_names")
+        .expect("Could not open username tree.");
+    let userid_pwd_tree = sled_db
+        .open_tree(b"userids_pwds")
+        .expect("Could not open password tree.");
+    let userid_rootdir_tree = sled_db
+        .open_tree(b"userid_rootdir")
+        .expect("Could not open root dir tree.");
+    let dir_tree = sled_db
+        .open_tree(b"dirs")
+        .expect("Could not open directory tree.");
+    let file_tree = sled_db
+        .open_tree(b"files")
+        .expect("Could not open file tree.");
+
+    // Removing from userid_name_tree and username_id_tree:
+    match userid_name_tree.remove(user_id.to_be_bytes()) {
+        Ok(Some(name_bytes)) => {
+            if let Err(e) = username_id_tree.remove(name_bytes) {
+                println!("Error while reading from database: {}", e);
+                return;
+            }
+        }
+        Err(e) => {
+            println!("Error while reading from database: {}", e);
+            return;
+        }
+        Ok(None) => {}
+    };
+
+    // Removing from userid_pwd_tree:
+    if let Err(e) = userid_pwd_tree.remove(user_id.to_be_bytes()) {
+        println!("Error while reading from database: {}", e);
+        return;
+    }
+
+    // Remove all of users files and directorie:
+    let root_dir_id = match userid_rootdir_tree.remove(user_id.to_be_bytes()) {
+        Ok(Some(v)) => v,
+        Err(e) => {
+            println!("Error while reading from database: {}", e);
+            return;
+        }
+        Ok(None) => {
+            return;
+        }
+    };
+
+    let mut fsnode_stack = vec![root_dir_id];
+
+    while !fsnode_stack.is_empty() {
+        let next_node = fsnode_stack.pop().unwrap();
+        match file_tree.get(&next_node) {
+            Ok(Some(file_bytes)) => {
+                // Only remove the file, if the given user is the owner:
+                if file_bytes[8..16] == user_id.to_be_bytes() {
+                    if let Err(e) = file_tree.remove(next_node) {
+                        println!("Error while removing file from DB: {}", e);
+                        return;
+                    }
+                }
+                continue;
+            }
+            Ok(None) => {
+                // The fs-node must be a dir.
+            }
+            Err(e) => {
+                println!("Error while reading from DB: {}", e);
+                return;
+            }
+        }
+
+        // The fs-node must be a dir.
+        match dir_tree.get(&next_node) {
+            Ok(Some(bytes)) => {
+                // Add childs to stack:
+                let child_number = u16::from_be_bytes(bytes[16..18].try_into().unwrap()) as usize;
+                for i in 0..child_number {
+                    fsnode_stack.push(IVec::from(&bytes[(18 + i * 8)..(26 + i * 8)]));
+                }
+                // Remove dir from db, if the given user is the owner:
+                if bytes[8..16] == user_id.to_be_bytes() {
+                    if let Err(e) = dir_tree.remove(next_node) {
+                        println!("Error while removing directory from DB: {}", e);
+                        return;
+                    }
+                }
+            }
+            Ok(None) => {}
+            Err(e) => {
+                println!("Error while reading from DB: {}", e);
                 return;
             }
         }
