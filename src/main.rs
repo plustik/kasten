@@ -2,7 +2,10 @@
 #[macro_use]
 extern crate rocket;
 
-use std::convert::From;
+use std::{
+    convert::From,
+    fmt::{Display, Formatter},
+};
 
 mod config;
 mod database;
@@ -19,12 +22,25 @@ fn main() {
 
 #[derive(Debug)]
 pub enum Error {
-    DBError(sled::Error),
+    DbError(sled::Error),
     EntryNotFound,
+    NoSuchUser,
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter) -> Result<(), std::fmt::Error> {
+        use Error::*;
+
+        match self {
+            DbError(e) => write!(f, "DB-Error: {}", e),
+            EntryNotFound => write!(f, "The given entry was not found in the DB."),
+            NoSuchUser => write!(f, "The given user does not exist in the DB."),
+        }
+    }
 }
 
 impl From<sled::Error> for Error {
     fn from(err: sled::Error) -> Self {
-        Error::DBError(err)
+        Error::DbError(err)
     }
 }

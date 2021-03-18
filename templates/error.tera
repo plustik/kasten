@@ -1,0 +1,9 @@
+
+<head>
+    <title>Public Files - Kasten</title>
+</head>
+<body>
+    <h3>{{ STATUS_CODE }}</h3>
+
+	<h4>{{ STATUS_MSG }}</h4>
+</body>

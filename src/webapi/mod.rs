@@ -11,14 +11,22 @@ use rocket::{
 use rocket_contrib::templates::Template;
 use tera::Context;
 
+use crate::Error;
 use crate::database::Database;
 use crate::models::UserSession;
+
+
+mod content_pages;
+mod errors;
+use errors::error_catchers;
+
 
 pub fn init(db: Database) -> Result<(), ()> {
     Rocket::ignite()
         .attach(Template::fairing())
         .manage(db)
         .mount("/", routes![index_login, index, login])
+        .register(error_catchers())
         .launch();
 
     Ok(())
@@ -70,10 +78,17 @@ fn login(credentials: Form<LoginCreds>, db: State<Database>) -> Result<Html<Temp
         .is_ok()
     {
         // Right password:
-        let mut cont = Context::new();
-        cont.insert("USERNAME", &user.name);
-        cont.insert("FILES", &vec!["file1", "file2"]);
-        Ok(Html(Template::render("index", cont.into_json())))
+        content_pages::dir_page(&db, user.id, user.root_dir_id).map_err(|err| {
+            if let Error::DbError(e) = err {
+                // TODO: Add logging
+                //error!("DB-Error while GET /: {}", e);
+                println!("DB-Error while GET /: {}", e);
+
+                Status::InternalServerError
+            } else {
+                panic!("Error: {}", err);
+            }
+        })
     } else {
         // Wrong password:
         let mut context = Context::new();
@@ -84,23 +99,27 @@ fn login(credentials: Form<LoginCreds>, db: State<Database>) -> Result<Html<Temp
 
 // Show own and shared directories:
 #[get("/", rank = 3)]
-fn index(db: State<Database>, session: UserSession) -> Html<Template> {
-    let user = db
-        .get_user(session.user_id)
-        .expect("Could not read user from database.")
-        .unwrap();
+fn index(db: State<Database>, session: UserSession) -> Result<Html<Template>, Status> {
+    let user = match db.get_user(session.user_id) {
+        Ok(opt) => opt.unwrap(),
+        Err(e) => {
+            // TODO: Add logging
+            //error!("DB-Error while GET /: {}", e);
+            println!("DB-Error while GET /: {}", e);
 
-    let mut cont = Context::new();
-    cont.insert("USERNAME", &user.name);
+            return Err(Status::InternalServerError);
+        }
+    };
 
-    let files = db.get_files_by_parent(user.root_dir_id).unwrap(); // TODO: How to handle errors?
-    let dirs = db.get_dirs_by_parent(user.root_dir_id).unwrap(); // TODO: How to handle errors?
-    let names: Vec<String> = files
-        .into_iter()
-        .map(|file| file.name)
-        .chain(dirs.into_iter().map(|dir| dir.name))
-        .collect();
-    cont.insert("FILES", &names);
+    content_pages::dir_page(&db, user.id, user.root_dir_id).map_err(|err| {
+        if let Error::DbError(e) = err {
+            // TODO: Add logging
+            //error!("DB-Error while GET /: {}", e);
+            println!("DB-Error while GET /: {}", e);
 
-    Html(Template::render("index", cont.into_json()))
+            Status::InternalServerError
+        } else {
+            panic!("Error: {}", err);
+        }
+    })
 }
