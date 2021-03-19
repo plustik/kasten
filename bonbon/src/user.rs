@@ -132,7 +132,7 @@ pub fn userlist(args: Vec<String>) {
                 let user_id = u64::from_be_bytes(id_bytes.as_ref().try_into().unwrap());
                 let username = String::from_utf8(Vec::from(name_bytes.as_ref())).unwrap();
 
-                println!("{}: \t{}", user_id, username);
+                println!("{:x}: \t{}", user_id, username);
             }
             Err(e) => {
                 println!("Error while reading from DB:\n{}", e);
@@ -148,7 +148,7 @@ pub fn userrm(args: Vec<String>) {
         return;
     }
 
-    let user_id = if let Ok(v) = u64::from_str_radix(args[3].as_str(), 10) {
+    let user_id = if let Ok(v) = u64::from_str_radix(args[3].as_str(), 16) {
         v
     } else {
         println!("The given user-id was not a number.");
