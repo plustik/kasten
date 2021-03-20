@@ -8,7 +8,7 @@ edition = "2018"
 
 [dependencies]
 argon2 = "0.1"
-rand_core = { version = "0.6", features = ["std"] }
+rand = "0.8"
 rocket = "0.4.7"
 sled = "0.34"
 tera = "1.5.0"

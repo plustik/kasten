@@ -1,5 +1,6 @@
 use std::convert::TryInto;
 
+use rand::{thread_rng, RngCore};
 use sled::{Db, Tree};
 
 use crate::{
@@ -57,6 +58,23 @@ impl Database {
             userid_rootdir_tree,
             dir_tree,
             file_tree,
+        })
+    }
+
+    pub fn create_user_session(&self, user_id: u64) -> sled::Result<UserSession> {
+        // Generate random session_id:
+        let mut rng = thread_rng();
+        let mut session_id = rng.next_u64();
+        while self.session_tree.contains_key(session_id.to_be_bytes())? {
+            session_id = rng.next_u64();
+        }
+
+        self.session_tree
+            .insert(&session_id.to_be_bytes(), &user_id.to_be_bytes())?;
+
+        Ok(UserSession {
+            session_id,
+            user_id,
         })
     }
 

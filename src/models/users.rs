@@ -16,8 +16,9 @@ struct Group {
     member_ids: u64,
 }
 
+#[derive(Debug)]
 pub struct UserSession {
-    session_id: u64,
+    pub session_id: u64,
     pub user_id: u64,
 }
 
@@ -35,7 +36,7 @@ impl<'a, 'r> FromRequest<'a, 'r> for UserSession {
 
     fn from_request(req: &'a Request<'r>) -> Outcome<Self, Self::Error> {
         let cookies = req.cookies();
-        let session_cookie = if let Some(c) = cookies.get("session") {
+        let session_cookie = if let Some(c) = cookies.get("session_id") {
             c.value()
         } else {
             return Outcome::Forward(());
