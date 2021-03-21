@@ -2,30 +2,43 @@ use argon2::{
     password_hash::{PasswordHash, PasswordVerifier},
     Argon2,
 };
+use rand::{thread_rng, RngCore};
 use rocket::{
-    http::Status,
-    request::{Form, FromForm},
+    data::{Data, FromDataSimple, Outcome},
+    http::{Cookie, Cookies, RawStr, SameSite, Status},
+    request::{Form, FromForm, Request},
     response::content::Html,
     Rocket, State,
 };
-use rocket_contrib::templates::Template;
+use rocket_contrib::{
+    serve::{self, StaticFiles},
+    templates::Template,
+};
 use tera::Context;
 
-use crate::Error;
-use crate::database::Database;
-use crate::models::UserSession;
+use std::{
+    fs::copy,
+    path::PathBuf,
+};
 
+use crate::{
+    config::Config,
+    database::Database,
+    Error,
+    models::{Id, UserSession,},
+};
 
 mod content_pages;
 mod errors;
 use errors::error_catchers;
 
-
-pub fn init(db: Database) -> Result<(), ()> {
+pub fn init(db: Database, config: Config) -> Result<(), ()> {
     Rocket::ignite()
         .attach(Template::fairing())
         .manage(db)
-        .mount("/", routes![index_login, index, login])
+        .manage(config)
+        .mount("/", routes![index_login, index, login, upload_file])
+        .mount("/static", StaticFiles::new("static/", serve::Options::None))
         .register(error_catchers())
         .launch();
 
@@ -94,10 +107,13 @@ fn login(
             }
         };
         // Set cookies:
-        cookies.add(Cookie::new(
+        cookies.add(Cookie::build(
             "session_id",
-            format!("{:x}", session.session_id),
-        ));
+            format!("{:x}", session.session_id))
+            .same_site(SameSite::Strict)
+            .secure(true)
+            .finish(),
+        );
         // Send response:
         content_pages::dir_page(&db, user.id, user.root_dir_id).map_err(|err| {
             if let Error::DbError(e) = err {
@@ -143,4 +159,60 @@ fn index(db: State<Database>, session: UserSession) -> Result<Html<Template>, St
             panic!("Error: {}", err);
         }
     })
+}
+
+struct UploadFile {
+    location: PathBuf,
+}
+impl FromDataSimple for UploadFile {
+    type Error = Error;
+
+    fn from_data(_: &Request<'_>, data: Data) -> Outcome<Self, Self::Error> {
+        // Get path for temp-file:
+        let mut temp_path = std::env::temp_dir();
+        let mut rng = thread_rng();
+        let random_part = rng.next_u64();
+        temp_path.push(format!("kasten_upload_{:x}", random_part));
+
+        if let Err(e) = data.stream_to_file(&temp_path) {
+            return Outcome::Failure((Status::InternalServerError, Error::from(e)));
+        }
+
+        Outcome::Success(UploadFile {
+            location: temp_path,
+        })
+    }
+}
+
+#[post("/upload/<parent_id>/<upload_name>", data = "<tmp_file>")]
+fn upload_file(
+    parent_id: Id,
+    upload_name: &RawStr,
+    session: UserSession,
+    db: State<Database>,
+    config: State<Config>,
+    tmp_file: UploadFile,
+) -> Result<String, Status> {
+    // Insert new file to DB:
+    let name = match upload_name.url_decode() {
+        Ok(s) => s,
+        Err(_) => {
+            return Err(Status::BadRequest);
+        }
+    };
+    let file_id = match dbg!(db.insert_new_file(parent_id.inner(), session.user_id, name.as_str())) {
+        Ok(v) => v,
+        Err(_) => {
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    // Copy temporary file to new location:
+    let mut new_path = config.file_location.clone();
+    new_path.push(format!("{:x}", file_id));
+    if let Err(_) = dbg!(copy(dbg!(tmp_file.location), new_path)) {
+        // TODO: Logging and remove from DB
+        return Err(Status::InternalServerError);
+    }
+    Ok(name)
 }

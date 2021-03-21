@@ -1,6 +1,9 @@
 use rocket::request::{FromRequest, Outcome, Request, State};
 
-use crate::database::Database;
+use crate::{
+    database::Database,
+    models::Id,
+};
 
 pub struct User {
     pub id: u64,

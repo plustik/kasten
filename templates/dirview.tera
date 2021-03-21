@@ -1,16 +1,26 @@
 
 <head>
-    <title>Home - Kasten</title>
+  <title>Home - Kasten</title>
+
+  <script src="/static/dirview.js" async></script>
 </head>
 <body>
-    <h3>/home/</h3>
+  <h4>Logged in as: {{ USERNAME }}</h4>
 
-	<h4>Logged in as: {{ USERNAME }}</h4>
+  <h3>/home/</h3>
 
-    <ul>
-    {% for fsnode_name in FILES %}
-        <li>{{fsnode_name}}</li>
-    {% endfor %}
-    </ul>
+  <form>
+    <input id="dirid-field" type="hidden" value="{{ DIR_ID }}"/>
+    <label for="upload-file">New file:</label><br>
+    <input type="file" name="file" required multiple id="upload-file"/><br>
+
+    <input type="button" value="Upload" id="file-upload-btn"/>
+  </form>
+
+  <ul id="file-list">
+  {% for fsnode_name in FILES %}
+      <li>{{fsnode_name}}</li>
+  {% endfor %}
+  </ul>
 
 </body>

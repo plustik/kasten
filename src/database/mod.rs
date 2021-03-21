@@ -197,4 +197,23 @@ impl Database {
 
         Ok(res)
     }
+
+    /// Inserts a new file with the given attributes in the DB.
+    /// If no errors occour, the file-id of the new file is returned.
+    pub fn insert_new_file(&self, parent_id: u64, owner_id: u64, name: &str) -> Result<u64, Error> {
+        // Generate new file-id:
+        let mut rng = thread_rng();
+        let mut file_id = rng.next_u64();
+        while self.file_tree.contains_key(file_id.to_be_bytes())? {
+            file_id = rng.next_u64();
+        }
+
+        // Insert data:
+        let mut data = Vec::from(&parent_id.to_be_bytes()[..]);
+        data.extend_from_slice(&owner_id.to_be_bytes());
+        data.extend_from_slice(name.as_bytes());
+        self.file_tree.insert(file_id.to_be_bytes(), data)?;
+
+        Ok(file_id)
+    }
 }
