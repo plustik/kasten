@@ -25,8 +25,11 @@ pub enum Error {
     DbError(sled::Error),
     IoError(std::io::Error),
     ParseIntError(std::num::ParseIntError),
+    TransactionAbortError,
+    TransactionStorageError,
     EntryNotFound,
     NoSuchUser,
+    NoSuchDir,
 }
 
 impl Display for Error {
@@ -36,9 +39,12 @@ impl Display for Error {
         match self {
             DbError(e) => write!(f, "DB-Error: {}", e),
             IoError(e) => write!(f, "IoError: {}", e),
-            ParseIntError(e) => write!(f, "Could not parse the given number."),
+            ParseIntError(_) => write!(f, "Could not parse the given number."),
+            TransactionAbortError => write!(f, "TransactionError: Abort"),
+            TransactionStorageError => write!(f, "TransactionError: StorageError"),
             EntryNotFound => write!(f, "The given entry was not found in the DB."),
             NoSuchUser => write!(f, "The given user does not exist in the DB."),
+            NoSuchDir => write!(f, "The given directory does not exist in the DB."),
         }
     }
 }
@@ -56,5 +62,13 @@ impl From<std::num::ParseIntError> for Error {
 impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
         Error::IoError(err)
+    }
+}
+impl<T> From<sled::transaction::TransactionError<T>> for Error {
+    fn from(err: sled::transaction::TransactionError<T>) -> Self {
+        match err {
+            sled::transaction::TransactionError::Abort(_) => Error::TransactionAbortError,
+            sled::transaction::TransactionError::Storage(e) => Error::DbError(e),
+        }
     }
 }

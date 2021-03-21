@@ -9,7 +9,7 @@ pub trait FsNode {
     fn owner_id(&self) -> u64;
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct File {
     pub id: u64,
     pub parent_id: u64,

@@ -1,7 +1,10 @@
 use std::convert::TryInto;
 
 use rand::{thread_rng, RngCore};
-use sled::{Db, Tree};
+use sled::{
+    transaction::ConflictableTransactionError,
+    Db,Transactional, Tree
+};
 
 use crate::{
     config::Config,
@@ -208,11 +211,41 @@ impl Database {
             file_id = rng.next_u64();
         }
 
-        // Insert data:
+        // Byte representation of new file:
         let mut data = Vec::from(&parent_id.to_be_bytes()[..]);
         data.extend_from_slice(&owner_id.to_be_bytes());
         data.extend_from_slice(name.as_bytes());
-        self.file_tree.insert(file_id.to_be_bytes(), data)?;
+
+        (&self.file_tree, &self.dir_tree).transaction(|(file_tt, dir_tt)| {
+            let parent_bytes = if let Some(b) = dir_tt.get(parent_id.to_be_bytes())? {
+                b
+            } else {
+                return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
+            };
+            let mut new_parent_bytes = Vec::from(&parent_bytes[0..16]);
+
+            // Increase child-number:
+            let mut child_number = u16::from_be_bytes(parent_bytes[16..18].try_into().unwrap());
+            // TODO: Handle overflow:
+            child_number += 1;
+            new_parent_bytes.push(child_number.to_be_bytes()[0]);
+            new_parent_bytes.push(child_number.to_be_bytes()[1]);
+            // Add old childs:
+            new_parent_bytes.extend_from_slice(&parent_bytes[18..(18 + (child_number as usize - 1) * 8)]);
+            // Add new child:
+            new_parent_bytes.extend_from_slice(&file_id.to_be_bytes());
+            // Add name of parent:
+            new_parent_bytes.extend_from_slice(&parent_bytes[(18 + (child_number as usize - 1) * 8)..]);
+
+            // Insert new parent directory:
+            dir_tt.insert(&parent_id.to_be_bytes(), new_parent_bytes)?;
+
+            // Insert file into file-tree:
+            file_tt.insert(&file_id.to_be_bytes(), data.as_slice())?;
+
+
+            Ok(())
+        })?;
 
         Ok(File {
             id: file_id,
