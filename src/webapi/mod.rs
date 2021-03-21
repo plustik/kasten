@@ -5,9 +5,9 @@ use argon2::{
 use rand::{thread_rng, RngCore};
 use rocket::{
     data::{Data, FromDataSimple, Outcome},
-    http::{Cookie, Cookies, RawStr, SameSite, Status},
+    http::{Cookie, Cookies, ContentType, RawStr, SameSite, Status},
     request::{Form, FromForm, Request},
-    response::content::Html,
+    response::content::{Content, Html},
     Rocket, State,
 };
 use rocket_contrib::{
@@ -192,7 +192,7 @@ fn upload_file(
     db: State<Database>,
     config: State<Config>,
     tmp_file: UploadFile,
-) -> Result<String, Status> {
+) -> Result<Content<String>, Status> {
     // Insert new file to DB:
     let name = match upload_name.url_decode() {
         Ok(s) => s,
@@ -200,7 +200,7 @@ fn upload_file(
             return Err(Status::BadRequest);
         }
     };
-    let file_id = match dbg!(db.insert_new_file(parent_id.inner(), session.user_id, name.as_str())) {
+    let new_file = match db.insert_new_file(parent_id.inner(), session.user_id, name.as_str()) {
         Ok(v) => v,
         Err(_) => {
             return Err(Status::InternalServerError);
@@ -209,10 +209,19 @@ fn upload_file(
 
     // Copy temporary file to new location:
     let mut new_path = config.file_location.clone();
-    new_path.push(format!("{:x}", file_id));
-    if let Err(_) = dbg!(copy(dbg!(tmp_file.location), new_path)) {
+    new_path.push(format!("{:x}", new_file.id));
+    if let Err(_) = copy(tmp_file.location, new_path) {
         // TODO: Logging and remove from DB
         return Err(Status::InternalServerError);
     }
-    Ok(name)
+
+    let res = match serde_json::to_string(&new_file) {
+        Ok(v) => v,
+        Err(_) => {
+            // TODO: Logging and remove from DB
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    Ok(Content(ContentType::JSON, res))
 }

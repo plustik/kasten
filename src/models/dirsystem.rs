@@ -1,3 +1,7 @@
+
+use serde::Serialize;
+
+
 pub trait FsNode {
     fn id(&self) -> u64;
     fn name(&self) -> &str;
@@ -5,6 +9,7 @@ pub trait FsNode {
     fn owner_id(&self) -> u64;
 }
 
+#[derive(Serialize)]
 pub struct File {
     pub id: u64,
     pub parent_id: u64,
@@ -30,6 +35,7 @@ impl FsNode for File {
     }
 }
 
+#[derive(Serialize)]
 pub struct Dir {
     pub id: u64,
     pub parent_id: u64,

@@ -30,28 +30,37 @@ function uploadFile() {
 	for (var i = 0; i < files.length; i++) {
 		const file = files.item(i);
 		if (file.size < 65536) {
-			const pushReq = new XMLHttpRequest();
-			pushReq.addEventListener("load", onPushFile);
-			pushReq.open("POST", "/upload/" + dirId + "/" + encodeURIComponent(file.name));
-			pushReq.setRequestHeader("Content-Type", file.type);
-			pushReq.send(file);
+			let header = new Headers();
+			header.set("Content-Type", file.type);
+			header.set("Accept", "text/json");
+			fetch("/upload/" + dirId + "/" + encodeURIComponent(file.name),
+				{
+					method: "POST",
+					headers: header,
+					body: file,
+				})
+				.then(function(res) {
+					if (res.status == 200) {
+						return res.json()
+					} else {
+						// TODO: Show error
+					}
+				})
+				.then(function(jsonRes) {
+					onPushFile(jsonRes);
+				});
 		} else {
 			// TODO: Show error.
 		}
 	}
 }
 
-function onPushFile() {
-	if (this.status == 200) {
-		// Create new file list item:
-		let newLi = document.createElement("li");
-		console.log(this.responseText);
-		newLi.innerHTML = this.responseText;
+function onPushFile(req) {
+	// Create new file list item:
+	let newLi = document.createElement("li");
+	newLi.innerHTML = '<a href="/files/' + req.id + '">' + req.name + '</a>';
 
-		// Append new list item:
-		const fileList = document.getElementById("file-list");
-		fileList.appendChild(newLi);
-	} else {
-		// TODO: Show error
-	}
+	// Append new list item:
+	const fileList = document.getElementById("file-list");
+	fileList.appendChild(newLi);
 }

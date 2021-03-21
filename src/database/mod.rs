@@ -199,8 +199,8 @@ impl Database {
     }
 
     /// Inserts a new file with the given attributes in the DB.
-    /// If no errors occour, the file-id of the new file is returned.
-    pub fn insert_new_file(&self, parent_id: u64, owner_id: u64, name: &str) -> Result<u64, Error> {
+    /// If no errors occour, a representaion of the new file is returned.
+    pub fn insert_new_file(&self, parent_id: u64, owner_id: u64, name: &str) -> Result<File, Error> {
         // Generate new file-id:
         let mut rng = thread_rng();
         let mut file_id = rng.next_u64();
@@ -214,6 +214,11 @@ impl Database {
         data.extend_from_slice(name.as_bytes());
         self.file_tree.insert(file_id.to_be_bytes(), data)?;
 
-        Ok(file_id)
+        Ok(File {
+            id: file_id,
+            parent_id,
+            owner_id,
+            name: String::from(name),
+        })
     }
 }

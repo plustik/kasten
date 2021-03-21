@@ -18,9 +18,12 @@
   </form>
 
   <ul id="file-list">
-  {% for fsnode_name in FILES %}
-      <li>{{fsnode_name}}</li>
-  {% endfor %}
+    {% for dirnode in DIRS %}
+    <li>{{dirnode.name}}</li>
+    {% endfor %}
+    {% for file in FILES %}
+    <li><a href="/files/{{file.id}}">{{file.name}}</a></li>
+    {% endfor %}
   </ul>
 
 </body>

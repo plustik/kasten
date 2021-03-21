@@ -20,13 +20,9 @@ pub fn dir_page(db: &Database, user_id: u64, dir_id: u64) -> Result<Html<Templat
     cont.insert("DIR_ID", format!("{:x}", dir_id).as_str());
 
     let files = db.get_files_by_parent(dir_id)?;
+    cont.insert("FILES", &files);
     let dirs = db.get_dirs_by_parent(dir_id)?;
-    let names: Vec<String> = files
-        .into_iter()
-        .map(|file| file.name)
-        .chain(dirs.into_iter().map(|dir| dir.name))
-        .collect();
-    cont.insert("FILES", &names);
+    cont.insert("DIRS", &dirs);
 
     Ok(Html(Template::render("dirview", cont.into_json())))
 }
