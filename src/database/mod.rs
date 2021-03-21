@@ -139,6 +139,19 @@ impl Database {
         }
     }
 
+    pub fn get_file(&self, id: u64) -> sled::Result<Option<File>> {
+        self.file_tree.get(id.to_be_bytes()).map(|opt| {
+            opt.map(|bytes| {
+                File {
+                    id,
+                    parent_id: u64::from_be_bytes(bytes[0..8].try_into().unwrap()),
+                    owner_id: u64::from_be_bytes(bytes[8..16].try_into().unwrap()),
+                    name: String::from_utf8(Vec::from(&bytes[16..])).unwrap(),
+                }
+            })
+        })
+    }
+
     fn get_dirs_childs(&self, dir_id: u64) -> Result<Vec<u64>, Error> {
         if let Some(dir) = self.dir_tree.get(dir_id.to_be_bytes())? {
             let child_number = u16::from_be_bytes(dir[16..18].try_into().unwrap()) as usize;

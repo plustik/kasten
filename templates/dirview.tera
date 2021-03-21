@@ -22,7 +22,7 @@
     <li>{{dirnode.name}}</li>
     {% endfor %}
     {% for file in FILES %}
-    <li><a href="/files/{{file.id}}">{{file.name}}</a></li>
+    <li><a href="/files/{{ file.id | tohex }}" download="{{file.name}}">{{file.name}}</a></li>
     {% endfor %}
   </ul>
 

@@ -58,7 +58,7 @@ function uploadFile() {
 function onPushFile(req) {
 	// Create new file list item:
 	let newLi = document.createElement("li");
-	newLi.innerHTML = '<a href="/files/' + req.id + '">' + req.name + '</a>';
+	newLi.innerHTML = '<a href="/files/' + Numer(req.id).toString(16) + '" download="' + req.name + '">' + req.name + '</a>';
 
 	// Append new list item:
 	const fileList = document.getElementById("file-list");
