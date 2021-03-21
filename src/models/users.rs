@@ -1,10 +1,7 @@
 use rocket::request::{FromRequest, Outcome, Request, State};
 use serde::Serialize;
 
-use crate::{
-    database::Database,
-    models::Id,
-};
+use crate::database::Database;
 
 #[derive(Serialize)]
 pub struct User {

@@ -4,7 +4,6 @@ use tera::Context;
 
 use crate::{
     database::Database,
-    models::Id,
     Error
 };
 
