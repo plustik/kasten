@@ -81,6 +81,13 @@ impl Database {
         })
     }
 
+    /// Removes the user session with the given id from the DB. If no such session exists in the
+    /// DB, it will still return Ok(()).
+    pub fn remove_user_session(&self, session_id: u64) -> sled::Result<()> {
+        self.session_tree.remove(session_id.to_be_bytes())?;
+        Ok(())
+    }
+
     pub fn get_user_session(&self, session_id: u64) -> sled::Result<Option<UserSession>> {
         let session_id_bytes = session_id.to_be_bytes();
 

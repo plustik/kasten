@@ -13,12 +13,10 @@ use rocket::{
     },
     Route, State,
 };
-use rocket_contrib::{
-    templates::{
+use rocket_contrib::templates::{
         tera::Context,
         Template,
-    },
-};
+    };
 
 use std::{
     fs::{copy, File},
@@ -36,7 +34,7 @@ mod content_pages;
 
 
 pub fn get_routes() -> Vec<Route> {
-    routes![index_login, index, login, upload_file, download_file]
+    routes![index_login, index, login, logout, upload_file, download_file]
 }
 
 // Show login form:
@@ -126,6 +124,27 @@ fn login(
         context.insert("WARNING", &"The password was wrong.");
         Ok(Html(Template::render("login", context)))
     }
+}
+
+#[get("/logout.html")]
+fn logout(
+    session: UserSession,
+    mut cookies: Cookies,
+    db: State<Database>,
+) -> Result<Html<Template>, Status> {
+    // Try to remove the user session from the DB:
+    if let Err(e) = db.remove_user_session(session.session_id) {
+        // TODO: Logging
+        println!("Error on POST /logout.html: {}", e);
+        return Err(Status::InternalServerError);
+    }
+
+    // Remove the cookie:
+    cookies.remove(Cookie::named("session_id"));
+
+    // Send login page:
+    let context = Context::new();
+    Ok(Html(Template::render("login", context)))
 }
 
 // Show own and shared directories:
