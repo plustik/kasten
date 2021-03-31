@@ -1,0 +1,96 @@
+
+* {
+	box-sizing: border-box;
+}
+
+body {
+	padding: 10px;
+	background-color: #282828;
+}
+
+nav {
+	overflow: hidden;
+	margin-bottom: 10px;
+	background-color: #82c07c;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+}
+
+#nav-brand, #nav-username, #nav-logout {
+	display: block;
+	color: #1d2021;
+	text-align: center;
+	padding: 14px 16px;
+	text-decoration: none;
+}
+#nav-brand {
+	font-size: 1.5em;
+	font-weight: 600;
+	margin-right: auto;
+}
+#nav-logout, #nav-username {
+	margin: 0;
+}
+
+main {
+	padding: 10px;
+	background-color: #1d2021;
+	color: #fbf1c7;
+}
+
+
+.dir-head {
+	padding: 5px;
+	align-items: center;
+	display: flex;
+	justify-content: flex-start;
+}
+
+#dir-location-path {
+	font-size: 1.5em;
+	align-items: center;
+	margin: 0px;
+	padding-bottom: 0px;
+}
+
+#dir-add-menu {
+	position: relative;
+	padding: 0;
+}
+
+#dir-add-btn {
+	font-size: 1.5em;
+	font-weight: 1000;
+	color: #fe8019;
+	cursor: pointer;
+}
+#dir-add-btn:hover {
+	color: #fbf1c7;
+}
+
+#dir-add-drop {
+	z-index: 20;
+	min-width: 100%;
+	position: absolute;
+	top: 0;
+	left: 100%;
+	background-color: #3c3836;
+	border-radius: 4px;
+	padding: 8px;
+}
+.drop-item {
+	font-size: 1.2em;
+	padding: 5px 2px;
+	cursor: pointer;
+}
+
+
+.dir-item:link {
+	font-weight: 500;
+	color: #b8bb26;
+}
+.file-item, .file-name {
+	font-weight: 500;
+	color: #83a598;
+}

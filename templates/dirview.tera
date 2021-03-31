@@ -2,29 +2,50 @@
 <head>
   <title>Home - Kasten</title>
 
+  <link rel="stylesheet" href="/static/style.css">
   <script src="/static/dirview.js" async></script>
 </head>
 <body>
-  <h4>Logged in as: {{ USERNAME }}</h4>
-  <a id="nav-logout" href="/logout.html">Logout</a>
+  <nav>
+    <div id="nav-brand">Kasten</div>
+    <div id="nav-username">{{ USERNAME }}</div>
+    <a id="nav-logout" href="/logout.html">Logout</a>
+  </nav>
 
-  <h3>/home/</h3>
+  <main>
+    <div class="dir-view">
+      <div class="dir-head">
+        <div id="dir-location-path">/home/</div>
+        <div id="dir-add-menu">
+          <div id="dir-add-btn">[Add]</div>
+          <div id="dir-add-drop" style="display: none">
+            <div id="show-upload-btn" class="drop-item">Upload</div>
+            <div class="drop-item">Mkdir</div>
+          </div>
+        </div>
+      </div>
 
-  <form>
-    <input id="dirid-field" type="hidden" value="{{ DIR_ID }}"/>
-    <label for="upload-file">New file:</label><br>
-    <input type="file" name="file" required multiple id="upload-file"/><br>
+      <form id="upload-form" style="display:none">
+        <input id="dirid-field" type="hidden" value="{{ DIR_ID }}"/>
+        <label for="upload-file">New file:</label><br>
+        <input type="file" name="file" required multiple id="upload-file"/><br>
 
-    <input type="button" value="Upload" id="file-upload-btn"/>
-  </form>
+        <input type="button" value="Cancel" id="hide-upload-form-btn"/>
+        <input type="button" value="Upload" id="file-upload-btn"/>
+      </form>
 
-  <ul id="file-list">
-    {% for dirnode in DIRS %}
-    <li>{{dirnode.name}}</li>
-    {% endfor %}
-    {% for file in FILES %}
-    <li><a href="/files/{{ file.id | tohex }}" download="{{file.name}}">{{file.name}}</a></li>
-    {% endfor %}
-  </ul>
+      <div class="dir-contentlist">
+        <ul id="file-list">
+          {% for dirnode in DIRS %}
+          <li class="dir-item">{{dirnode.name}}</li>
+          {% endfor %}
+          {% for file in FILES %}
+          <li class="file-item"><a class="file-name" href="/files/{{ file.id | tohex }}" download="{{file.name}}">{{file.name}}</a></li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+
+  </main>
 
 </body>

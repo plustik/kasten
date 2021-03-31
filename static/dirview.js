@@ -19,6 +19,40 @@ switch (document.readyState) {
 function registerCallbacks() {
 	const uploadBtn = document.getElementById("file-upload-btn");
 	uploadBtn.addEventListener('click', uploadFile);
+
+	const addBtn = document.getElementById("dir-add-btn");
+	addBtn.addEventListener('click', toogleAddDropdown);
+
+	const showUploadFormBtn = document.getElementById("show-upload-btn");
+	showUploadFormBtn.addEventListener('click', showUploadForm);
+
+	const hideUploadFormBtn = document.getElementById("hide-upload-form-btn");
+	hideUploadFormBtn.addEventListener('click', hideUploadForm);
+}
+
+
+function toogleAddDropdown() {
+	const addDropdown = document.getElementById("dir-add-drop");
+	if (addDropdown.style.display === "none") {;
+		addDropdown.style.display = "block";
+	} else {
+		addDropdown.style.display = "none";
+	}
+}
+
+
+function showUploadForm() {
+	const addDropdown = document.getElementById("dir-add-drop");
+	if (addDropdown.style.display === "block") {;
+		addDropdown.style.display = "none";
+	}
+
+	const uploadForm = document.getElementById("upload-form");
+	uploadForm.style.display = "block";
+}
+function hideUploadForm() {
+	const uploadForm = document.getElementById("upload-form");
+	uploadForm.style.display = "none";
 }
 
 
