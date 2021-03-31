@@ -14,10 +14,7 @@ use rocket::{
     },
     Route, State,
 };
-use rocket_contrib::templates::{
-        tera::Context,
-        Template,
-    };
+use rocket_contrib::templates::{tera::Context, Template};
 
 use std::{
     fs::{copy, File},
@@ -27,15 +24,21 @@ use std::{
 use crate::{
     config::Config,
     database::Database,
+    models::{Id, UserSession},
     Error,
-    models::{Id, UserSession,},
 };
 
 mod content_pages;
 
-
 pub fn get_routes() -> Vec<Route> {
-    routes![index_login, index, login, logout, upload_file, download_file]
+    routes![
+        index_login,
+        index,
+        login,
+        logout,
+        upload_file,
+        download_file
+    ]
 }
 
 // Show login form:
@@ -109,12 +112,11 @@ fn login(
             }
         };
         // Set cookies:
-        cookies.add(Cookie::build(
-            "session_id",
-            format!("{:x}", session.session_id))
-            .same_site(SameSite::Strict)
-            .secure(true)
-            .finish(),
+        cookies.add(
+            Cookie::build("session_id", format!("{:x}", session.session_id))
+                .same_site(SameSite::Strict)
+                .secure(true)
+                .finish(),
         );
         // Send response:
         content_pages::dir_page(&db, user.id, user.root_dir_id).map_err(|err| {
@@ -250,7 +252,12 @@ fn upload_file(
 }
 
 #[get("/files/<file_id>")]
-fn download_file(file_id: Id, session: UserSession, db: State<Database>, config: State<Config>) -> Result<Stream<File>, Status> {
+fn download_file(
+    file_id: Id,
+    session: UserSession,
+    db: State<Database>,
+    config: State<Config>,
+) -> Result<Stream<File>, Status> {
     let file_id = file_id.inner();
 
     // Check, if the user is allowed to access the file:
@@ -270,9 +277,7 @@ fn download_file(file_id: Id, session: UserSession, db: State<Database>, config:
         let mut file_path = config.file_location.clone();
         file_path.push(format!("{:x}", file_id));
         match File::open(file_path) {
-            Ok(file) => {
-                Ok(Stream::chunked(file, 16384))
-            }
+            Ok(file) => Ok(Stream::chunked(file, 16384)),
             Err(e) => {
                 // TODO: Logging
                 println!("Error on GET /files/...: {}", e);

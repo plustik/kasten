@@ -9,13 +9,10 @@ use rocket_contrib::{
 
 use std::collections::HashMap;
 
-use crate::{
-    config::Config,
-    database::Database,
-};
+use crate::{config::Config, database::Database};
 
-mod errors;
 mod content_routes;
+mod errors;
 use errors::error_catchers;
 
 pub fn init(db: Database, config: Config) -> Result<(), ()> {
@@ -38,10 +35,14 @@ fn init_template_engine(engines: &mut Engines) {
             if num.is_u64() {
                 Ok(Value::String(format!("{:x}", num.as_u64().unwrap())))
             } else {
-                Err(tera::Error::from_kind(tera::ErrorKind::Msg(format!("Number out of bounds: Not a u64"))))
+                Err(tera::Error::from_kind(tera::ErrorKind::Msg(format!(
+                    "Number out of bounds: Not a u64"
+                ))))
             }
         } else {
-            Err(tera::Error::from_kind(tera::ErrorKind::Msg(format!("Not a Number"))))
+            Err(tera::Error::from_kind(tera::ErrorKind::Msg(format!(
+                "Not a Number"
+            ))))
         }
     }
 

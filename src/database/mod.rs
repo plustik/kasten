@@ -199,13 +199,11 @@ impl Database {
 
     pub fn get_file(&self, id: u64) -> sled::Result<Option<File>> {
         self.file_tree.get(id.to_be_bytes()).map(|opt| {
-            opt.map(|bytes| {
-                File {
-                    id,
-                    parent_id: u64::from_be_bytes(bytes[0..8].try_into().unwrap()),
-                    owner_id: u64::from_be_bytes(bytes[8..16].try_into().unwrap()),
-                    name: String::from_utf8(Vec::from(&bytes[16..])).unwrap(),
-                }
+            opt.map(|bytes| File {
+                id,
+                parent_id: u64::from_be_bytes(bytes[0..8].try_into().unwrap()),
+                owner_id: u64::from_be_bytes(bytes[8..16].try_into().unwrap()),
+                name: String::from_utf8(Vec::from(&bytes[16..])).unwrap(),
             })
         })
     }
@@ -274,7 +272,12 @@ impl Database {
 
     /// Inserts a new file with the given attributes in the DB.
     /// If no errors occour, a representaion of the new file is returned.
-    pub fn insert_new_file(&self, parent_id: u64, owner_id: u64, name: &str) -> Result<File, Error> {
+    pub fn insert_new_file(
+        &self,
+        parent_id: u64,
+        owner_id: u64,
+        name: &str,
+    ) -> Result<File, Error> {
         // Generate new file-id:
         let mut rng = thread_rng();
         let mut file_id = rng.next_u64();
@@ -302,18 +305,19 @@ impl Database {
             new_parent_bytes.push(child_number.to_be_bytes()[0]);
             new_parent_bytes.push(child_number.to_be_bytes()[1]);
             // Add old childs:
-            new_parent_bytes.extend_from_slice(&parent_bytes[18..(18 + (child_number as usize - 1) * 8)]);
+            new_parent_bytes
+                .extend_from_slice(&parent_bytes[18..(18 + (child_number as usize - 1) * 8)]);
             // Add new child:
             new_parent_bytes.extend_from_slice(&file_id.to_be_bytes());
             // Add name of parent:
-            new_parent_bytes.extend_from_slice(&parent_bytes[(18 + (child_number as usize - 1) * 8)..]);
+            new_parent_bytes
+                .extend_from_slice(&parent_bytes[(18 + (child_number as usize - 1) * 8)..]);
 
             // Insert new parent directory:
             dir_tt.insert(&parent_id.to_be_bytes(), new_parent_bytes)?;
 
             // Insert file into file-tree:
             file_tt.insert(&file_id.to_be_bytes(), data.as_slice())?;
-
 
             Ok(())
         })?;

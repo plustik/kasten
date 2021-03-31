@@ -1,6 +1,4 @@
-
 use serde::Serialize;
-
 
 pub trait FsNode {
     fn id(&self) -> u64;
