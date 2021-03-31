@@ -37,6 +37,7 @@ pub fn get_routes() -> Vec<Route> {
         login,
         logout,
         logout_no_session,
+        dir_view,
         upload_file,
         download_file
     ]
@@ -182,6 +183,23 @@ fn index(db: State<Database>, session: UserSession) -> Result<Html<Template>, St
     };
 
     content_pages::dir_page(&db, user.id, user.root_dir_id).map_err(|err| {
+        if let Error::DbError(e) = err {
+            // TODO: Add logging
+            //error!("DB-Error while GET /: {}", e);
+            println!("DB-Error while GET /: {}", e);
+
+            Status::InternalServerError
+        } else {
+            panic!("Error: {}", err);
+        }
+    })
+}
+
+
+// Shows the contents of the given directory.
+#[get("/dirs/<dir_id>/view.html")]
+fn dir_view(dir_id: Id, session: UserSession, db: State<Database>) -> Result<Html<Template>, Status> {
+    content_pages::dir_page(&db, session.user_id, dir_id.inner()).map_err(|err| {
         if let Error::DbError(e) = err {
             // TODO: Add logging
             //error!("DB-Error while GET /: {}", e);
