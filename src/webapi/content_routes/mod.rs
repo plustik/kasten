@@ -2,10 +2,11 @@ use argon2::{
     password_hash::{PasswordHash, PasswordVerifier},
     Argon2,
 };
+use chrono::{offset::Utc, Duration};
 use rand::{thread_rng, RngCore};
 use rocket::{
     data::{Data, FromDataSimple, Outcome},
-    http::{Cookie, Cookies, ContentType, RawStr, SameSite, Status},
+    http::{ContentType, Cookie, Cookies, RawStr, SameSite, Status},
     request::{Form, FromForm, Request},
     response::{
         content::{Content, Html},
@@ -87,6 +88,15 @@ fn login(
         .is_ok()
     {
         // Right password.
+        // Remove all existing expired sessions:
+        if let Err(e) = db.filter_user_sessions(user.id, |session| {
+            Utc::now().signed_duration_since(session.creation_date) < Duration::hours(24)
+        }) {
+            // TODO: Add logging
+            //error!("DB-Error while GET /: {}", e);
+            println!("DB-Error while GET /: {}", e);
+        }
+
         // Create session:
         let session = match db.create_user_session(user.id) {
             Ok(s) => s,

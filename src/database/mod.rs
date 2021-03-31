@@ -1,10 +1,8 @@
 use std::convert::TryInto;
 
+use chrono::offset::{TimeZone, Utc};
 use rand::{thread_rng, RngCore};
-use sled::{
-    transaction::ConflictableTransactionError,
-    Db,Transactional, Tree
-};
+use sled::{transaction::ConflictableTransactionError, Db, Transactional, Tree};
 
 use crate::{
     config::Config,
@@ -14,7 +12,8 @@ use crate::{
 
 pub struct Database {
     _sled_db: Db,
-    session_tree: Tree,        // K: session_id, V: user_id
+    session_tree: Tree,        // K: session_id, V: user_id, createn_date
+    user_session_tree: Tree,   // K: user_id, session_id
     username_id_tree: Tree,    // K: username, V: user_id
     userid_name_tree: Tree,    // K: user_id, V: username
     userid_pwd_tree: Tree,     // K: user_id, V: pwd_hash
@@ -32,6 +31,9 @@ impl Database {
 
         let session_tree = sled_db
             .open_tree(b"sessions")
+            .expect("Could not open sessions tree.");
+        let user_session_tree = sled_db
+            .open_tree(b"user_sessions")
             .expect("Could not open sessions tree.");
         let username_id_tree = sled_db
             .open_tree(b"usernames_ids")
@@ -55,6 +57,7 @@ impl Database {
         Ok(Database {
             _sled_db: sled_db,
             session_tree,
+            user_session_tree,
             username_id_tree,
             userid_name_tree,
             userid_pwd_tree,
@@ -64,7 +67,8 @@ impl Database {
         })
     }
 
-    pub fn create_user_session(&self, user_id: u64) -> sled::Result<UserSession> {
+    /// Creates a new session for the given user, inserts the session into the DB and returns it.
+    pub fn create_user_session(&self, user_id: u64) -> Result<UserSession, Error> {
         // Generate random session_id:
         let mut rng = thread_rng();
         let mut session_id = rng.next_u64();
@@ -72,36 +76,83 @@ impl Database {
             session_id = rng.next_u64();
         }
 
-        self.session_tree
-            .insert(&session_id.to_be_bytes(), &user_id.to_be_bytes())?;
+        // Create entry for session-tree:
+        let mut session_content = Vec::from(user_id.to_be_bytes());
+        let creation_date = Utc::now();
+        session_content.extend_from_slice(&creation_date.timestamp().to_be_bytes());
+        // Create key for user-session-tree:
+        let mut user_session_key = Vec::from(user_id.to_be_bytes());
+        user_session_key.extend_from_slice(&session_id.to_be_bytes());
 
-        Ok(UserSession {
-            session_id,
-            user_id,
-        })
+        // Insert data:
+        (&self.session_tree, &self.user_session_tree).transaction(|(session_tt, user_tt)| {
+            let res: Result<(), ConflictableTransactionError> = Ok(());
+            session_tt.insert(&session_id.to_be_bytes(), session_content.as_slice())?;
+            user_tt.insert(user_session_key.as_slice(), &[])?;
+
+            res
+        })?;
+
+        Ok(UserSession::new(session_id, user_id, creation_date))
     }
 
     /// Removes the user session with the given id from the DB. If no such session exists in the
     /// DB, it will still return Ok(()).
-    pub fn remove_user_session(&self, session_id: u64) -> sled::Result<()> {
-        self.session_tree.remove(session_id.to_be_bytes())?;
+    pub fn remove_user_session(&self, session_id: u64) -> Result<(), Error> {
+        (&self.session_tree, &self.user_session_tree).transaction(|(session_tt, user_tt)| {
+            let res: Result<(), ConflictableTransactionError> = Ok(());
+
+            if let Some(v) = session_tt.remove(&session_id.to_be_bytes())? {
+                // Create key for user-session-tree:
+                let mut user_session_key = Vec::from(&v[0..8]);
+                user_session_key.extend_from_slice(&session_id.to_be_bytes());
+                user_tt.remove(user_session_key)?;
+            }
+
+            res
+        })?;
+
         Ok(())
     }
 
-    pub fn get_user_session(&self, session_id: u64) -> sled::Result<Option<UserSession>> {
+    /// Iterates over all sessions of the given user and removes all sessions, for which the given
+    /// filter function returns false.
+    pub fn filter_user_sessions<P>(&self, user_id: u64, mut filter_fn: P) -> Result<(), Error>
+    where
+        P: FnMut(UserSession) -> bool,
+    {
+        for res in self.user_session_tree.scan_prefix(user_id.to_be_bytes()) {
+            if let Ok((key, _)) = res {
+                // Get session from key:
+                let session_id = u64::from_be_bytes(key[8..16].try_into().unwrap());
+                let session = self.get_user_session(session_id)?.unwrap();
+
+                // Test, whether to remove the session:
+                if !filter_fn(session) {
+                    self.remove_user_session(session_id)?;
+                }
+            } else {
+                return Err(Error::from(res.unwrap_err()));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Returns the user session with the given id, if it exists in the DB.
+    pub fn get_user_session(&self, session_id: u64) -> Result<Option<UserSession>, Error> {
         let session_id_bytes = session_id.to_be_bytes();
 
-        if let Some(user_id_bytes) = self
-            .session_tree
-            .get(session_id_bytes)?
-            .filter(|bytes| bytes.len() == 8)
-        {
-            let user_id = u64::from_be_bytes(user_id_bytes.as_ref().try_into().unwrap());
-
-            Ok(Some(UserSession::new(session_id, user_id)))
+        let bytes = if let Some(b) = self.session_tree.get(session_id_bytes)? {
+            b
         } else {
-            Ok(None)
-        }
+            return Ok(None);
+        };
+
+        let user_id = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
+        let creation_date = Utc.timestamp(i64::from_be_bytes(bytes[8..16].try_into().unwrap()), 0);
+
+        Ok(Some(UserSession::new(session_id, user_id, creation_date)))
     }
 
     pub fn get_user(&self, user_id: u64) -> sled::Result<Option<User>> {

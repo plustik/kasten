@@ -1,3 +1,4 @@
+use chrono::{offset::Utc, DateTime, Duration};
 use rocket::request::{FromRequest, Outcome, Request, State};
 use serde::Serialize;
 
@@ -22,13 +23,15 @@ struct Group {
 pub struct UserSession {
     pub session_id: u64,
     pub user_id: u64,
+    pub creation_date: DateTime<Utc>,
 }
 
 impl UserSession {
-    pub fn new(session_id: u64, user_id: u64) -> UserSession {
+    pub fn new(session_id: u64, user_id: u64, creation_date: DateTime<Utc>) -> UserSession {
         UserSession {
             session_id,
             user_id,
+            creation_date,
         }
     }
 }
@@ -52,7 +55,12 @@ impl<'a, 'r> FromRequest<'a, 'r> for UserSession {
         };
 
         if let Ok(Some(res)) = db.get_user_session(session_id) {
-            Outcome::Success(res)
+            // Check, if the given session id to old:
+            if Utc::now().signed_duration_since(res.creation_date) < Duration::hours(24) {
+                Outcome::Success(res)
+            } else {
+                Outcome::Forward(())
+            }
         } else {
             Outcome::Forward(())
         }
