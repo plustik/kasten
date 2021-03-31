@@ -36,6 +36,7 @@ pub fn get_routes() -> Vec<Route> {
         index,
         login,
         logout,
+        logout_no_session,
         upload_file,
         download_file
     ]
@@ -138,7 +139,7 @@ fn login(
     }
 }
 
-#[get("/logout.html")]
+#[get("/logout.html", rank = 2)]
 fn logout(
     session: UserSession,
     mut cookies: Cookies,
@@ -154,6 +155,13 @@ fn logout(
     // Remove the cookie:
     cookies.remove(Cookie::named("session_id"));
 
+    // Send login page:
+    let context = Context::new();
+    Ok(Html(Template::render("login", context)))
+}
+
+#[get("/logout.html", rank = 3)]
+fn logout_no_session() -> Result<Html<Template>, Status> {
     // Send login page:
     let context = Context::new();
     Ok(Html(Template::render("login", context)))
