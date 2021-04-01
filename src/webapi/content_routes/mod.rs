@@ -38,6 +38,7 @@ pub fn get_routes() -> Vec<Route> {
         logout,
         logout_no_session,
         dir_view,
+        mkdir,
         upload_file,
         download_file
     ]
@@ -233,6 +234,39 @@ impl FromDataSimple for UploadFile {
             location: temp_path,
         })
     }
+}
+
+
+#[post("/mkdir/<parent_id>/<dir_name>")]
+fn mkdir(
+    parent_id: Id,
+    dir_name: &RawStr,
+    session: UserSession,
+    db: State<Database>,
+) -> Result<Content<String>, Status> {
+    // Insert new file to DB:
+    let name = match dir_name.url_decode() {
+        Ok(s) => s,
+        Err(_) => {
+            return Err(Status::BadRequest);
+        }
+    };
+    let new_dir = match db.insert_new_dir(parent_id.inner(), session.user_id, name.as_str()) {
+        Ok(v) => v,
+        Err(_) => {
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    let res = match serde_json::to_string(&new_dir) {
+        Ok(v) => v,
+        Err(_) => {
+            // TODO: Logging and remove from DB
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    Ok(Content(ContentType::JSON, res))
 }
 
 #[post("/upload/<parent_id>/<upload_name>", data = "<tmp_file>")]

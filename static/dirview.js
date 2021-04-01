@@ -17,17 +17,31 @@ switch (document.readyState) {
 
 
 function registerCallbacks() {
+	// Upload push button:
 	const uploadBtn = document.getElementById("file-upload-btn");
 	uploadBtn.addEventListener('click', uploadFile);
 
+	// Mkdir push button:
+	const mkdirBtn = document.getElementById("mkdir-btn");
+	mkdirBtn.addEventListener('click', addDir);
+
+
 	const addBtn = document.getElementById("dir-add-btn");
 	addBtn.addEventListener('click', toogleAddDropdown);
+
+	// Edit forms:
 
 	const showUploadFormBtn = document.getElementById("show-upload-btn");
 	showUploadFormBtn.addEventListener('click', showUploadForm);
 
 	const hideUploadFormBtn = document.getElementById("hide-upload-form-btn");
 	hideUploadFormBtn.addEventListener('click', hideUploadForm);
+
+	const showMkdirFormBtn = document.getElementById("show-mkdir-btn");
+	showMkdirFormBtn.addEventListener('click', showMkdirForm);
+
+	const hideMkdirFormBtn = document.getElementById("hide-mkdir-form-btn");
+	hideMkdirFormBtn.addEventListener('click', hideMkdirForm);
 }
 
 
@@ -40,6 +54,9 @@ function toogleAddDropdown() {
 	}
 }
 
+//
+// Upload files
+//
 
 function showUploadForm() {
 	const addDropdown = document.getElementById("dir-add-drop");
@@ -92,9 +109,70 @@ function uploadFile() {
 function onPushFile(req) {
 	// Create new file list item:
 	let newLi = document.createElement("li");
-	newLi.innerHTML = '<a href="/files/' + Numer(req.id).toString(16) + '" download="' + req.name + '">' + req.name + '</a>';
+	newLi.innerHTML = '<a class="file-name" href="/files/' + Numer(req.id).toString(16) + '" download="' + req.name + '">' + req.name + '</a>';
+	newLi.setAttribute("class", "file-item");
 
 	// Append new list item:
 	const fileList = document.getElementById("file-list");
 	fileList.appendChild(newLi);
+
+	// Hide upload form:
+	hideUploadForm();
+}
+
+//
+// Adding directories
+//
+
+function showMkdirForm() {
+	const addDropdown = document.getElementById("dir-add-drop");
+	if (addDropdown.style.display === "block") {;
+		addDropdown.style.display = "none";
+	}
+
+	const uploadForm = document.getElementById("mkdir-form");
+	uploadForm.style.display = "block";
+}
+function hideMkdirForm() {
+	const uploadForm = document.getElementById("mkdir-form");
+	uploadForm.style.display = "none";
+}
+
+function addDir() {
+	const dirName = document.getElementById("dirname").value;
+	const parentId = document.getElementById("dirid-field").value;
+
+	let header = new Headers();
+	header.set("Accept", "text/json");
+
+	fetch("/mkdir" + "/" + parentId + "/" + encodeURIComponent(dirName),
+		{
+			method: "POST",
+			headers: header,
+		})
+		.then(function(res) {
+			if (res.status == 200) {
+				return res.json()
+			} else {
+				// TODO: Show error
+			}
+		})
+		.then(function(jsonRes) {
+			onPushDir(jsonRes);
+		});
+}
+
+function onPushDir(req) {
+	// Create new dir list item:
+	let newLi = document.createElement("li");
+	newLi.innerHTML = req.name;
+	newLi.innerHTML = '<a class="dir-name" href="/dirs/' + Numer(req.id).toString(16) + '/view.html">' + req.name + '/</a>';
+	newLi.setAttribute("class", "dir-item");
+
+	// Append new list item:
+	const fileList = document.getElementById("file-list");
+	fileList.appendChild(newLi);
+
+	// Hide upload form:
+	hideMkdirForm();
 }

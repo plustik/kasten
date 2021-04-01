@@ -329,4 +329,67 @@ impl Database {
             name: String::from(name),
         })
     }
+
+    /// Inserts a new dir with the given attributes in the DB.
+    /// If no errors occour, a representaion of the new dir is returned.
+    pub fn insert_new_dir(
+        &self,
+        parent_id: u64,
+        owner_id: u64,
+        name: &str,
+    ) -> Result<Dir, Error> {
+        // Generate new dir-id:
+        let mut rng = thread_rng();
+        let mut dir_id = rng.next_u64();
+        while self.contains_node_id(dir_id)? {
+            dir_id = rng.next_u64();
+        }
+
+        // Byte representation of new dir:
+        let mut data = Vec::from(&parent_id.to_be_bytes()[..]);
+        data.extend_from_slice(&owner_id.to_be_bytes());
+        data.push(0);   // Child number
+        data.push(0);   // Child number
+        data.extend_from_slice(name.as_bytes());
+
+        self.dir_tree.transaction(|dir_tt| {
+            let parent_bytes = if let Some(b) = dir_tt.get(parent_id.to_be_bytes())? {
+                b
+            } else {
+                return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
+            };
+            let mut new_parent_bytes = Vec::from(&parent_bytes[0..16]);
+
+            // Increase child-number:
+            let mut child_number = u16::from_be_bytes(parent_bytes[16..18].try_into().unwrap());
+            // TODO: Handle overflow:
+            child_number += 1;
+            new_parent_bytes.push(child_number.to_be_bytes()[0]);
+            new_parent_bytes.push(child_number.to_be_bytes()[1]);
+            // Add old childs:
+            new_parent_bytes
+                .extend_from_slice(&parent_bytes[18..(18 + (child_number as usize - 1) * 8)]);
+            // Add new child:
+            new_parent_bytes.extend_from_slice(&dir_id.to_be_bytes());
+            // Add name of parent:
+            new_parent_bytes
+                .extend_from_slice(&parent_bytes[(18 + (child_number as usize - 1) * 8)..]);
+
+            // Insert new parent directory:
+            dir_tt.insert(&parent_id.to_be_bytes(), new_parent_bytes)?;
+
+            // Insert directory into dir-tree:
+            dir_tt.insert(&dir_id.to_be_bytes(), data.as_slice())?;
+
+            Ok(())
+        })?;
+
+        Ok(Dir {
+            id: dir_id,
+            parent_id,
+            owner_id,
+            child_ids: Vec::new(),
+            name: String::from(name),
+        })
+    }
 }

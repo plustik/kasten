@@ -86,11 +86,17 @@ main {
 }
 
 
-.dir-item:link {
+.dir-item, .dir-name, .dir-name:visited {
 	font-weight: 500;
 	color: #b8bb26;
 }
-.file-item, .file-name {
+.dir-name:hover, .dir-name:active {
+	color: #d3869b;
+}
+.file-item, .file-name, .file-name:visited {
 	font-weight: 500;
 	color: #83a598;
+}
+.file-name:hover, .file-name:active {
+	color: #fabd2f;
 }
