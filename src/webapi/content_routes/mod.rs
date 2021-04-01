@@ -200,6 +200,24 @@ fn index(db: State<Database>, session: UserSession) -> Result<Html<Template>, St
 // Shows the contents of the given directory.
 #[get("/dirs/<dir_id>/view.html")]
 fn dir_view(dir_id: Id, session: UserSession, db: State<Database>) -> Result<Html<Template>, Status> {
+    // Check if user is allowed to see that directory:
+    let dir = match db.get_dir(dir_id.inner()) {
+        Ok(Some(d)) => d,
+        Ok(None) => {
+            return Err(Status::NotFound);
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!("Error on GET /files/...: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    };
+    if dir.owner_id != session.user_id {
+        // TODO: Match against existing rules
+        return Err(Status::Unauthorized);
+    }
+
+    // Responde with dirview page:
     content_pages::dir_page(&db, session.user_id, dir_id.inner()).map_err(|err| {
         if let Error::DbError(e) = err {
             // TODO: Add logging
@@ -332,20 +350,21 @@ fn download_file(
             return Err(Status::InternalServerError);
         }
     };
-    if file.owner_id == session.user_id {
-        // Open file:
-        let mut file_path = config.file_location.clone();
-        file_path.push(format!("{:x}", file_id));
-        match File::open(file_path) {
-            Ok(file) => Ok(Stream::chunked(file, 16384)),
-            Err(e) => {
-                // TODO: Logging
-                println!("Error on GET /files/...: {}", e);
-                Err(Status::InternalServerError)
-            }
-        }
-    } else {
+    if file.owner_id != session.user_id {
         // TODO: Match against existing rules
-        Err(Status::Unauthorized)
+        return Err(Status::Unauthorized);
+    }
+
+
+    // Respond with streamed file:
+    let mut file_path = config.file_location.clone();
+    file_path.push(format!("{:x}", file_id));
+    match File::open(file_path) {
+        Ok(file) => Ok(Stream::chunked(file, 16384)),
+        Err(e) => {
+            // TODO: Logging
+            println!("Error on GET /files/...: {}", e);
+            Err(Status::InternalServerError)
+        }
     }
 }
