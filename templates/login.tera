@@ -1,25 +1,35 @@
 
 <head>
-    <title>Public Files - Kasten</title>
+    <title>Kasten</title>
+
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
-	<h3>Login</h3>
+
+  <nav>
+    <div id="nav-brand">Kasten</div>
+  </nav>
+
+  <main>
+
+	<h3 id="main-title">Login</h3>
 	{% if WARNING %}
 	<div>
-		<h4>{{ WARNING }}</h4>
+		<h4 id="warning-title">{{ WARNING }}</h4>
 	</div>
 	{% endif %}
 	<form action="/login.html" method="POST">
-	  <div>
+	  <div class="form-pair">
 		<label for="username">Username:</label><br>
-		<input type="text" id="username" name="username" placeholder="Username" required autofocus><br>
+		<input class="text-field" type="text" id="username" name="username" placeholder="Username" required autofocus><br>
 	  </div>
-	  <div>
+	  <div class="form-pair">
 		<label for="password">Password:</label><br>
-		<input type="password" id="password" name="password" placeholder="Password" required><br>
+		<input class="text-field" type="password" id="password" name="password" placeholder="Password" required><br>
 	  </div>
-	  <input type="submit" value="Login">
+	  <input class="form-btn" type="submit" value="Login">
 	</form>
 
+  </main>
 </body>

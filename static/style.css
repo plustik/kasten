@@ -100,3 +100,38 @@ main {
 .file-name:hover, .file-name:active {
 	color: #fabd2f;
 }
+
+
+#main-title {
+	margin-left: 5px;
+}
+
+#warning-title {
+	margin: 10px;
+	color: #fe8019;
+}
+
+.form-pair {
+	margin: 10px;
+}
+
+.form-btn {
+	margin: 10px;
+	background-color: inherit;
+	color: #fe8019;
+	border: 0 none #f00;
+	cursor: pointer;
+	font-size: 1.3em;
+	font-weight: 500;
+}
+.form-btn:hover, form-btn:active {
+	color: #fbf1c7;
+}
+
+.text-field {
+	background-color: #fbf1c7;
+	color: #1d2021;
+	border: 3px solid #fabd2f;
+	margin-top: 5px;
+	padding: 5px;
+}
