@@ -311,7 +311,8 @@ impl Database {
         // Generate new file-id:
         let mut rng = thread_rng();
         let mut file_id = rng.next_u64();
-        while self.contains_node_id(file_id)? {
+        while self.contains_node_id(file_id)?
+            || file_id == 0 {
             file_id = rng.next_u64();
         }
 
@@ -371,7 +372,8 @@ impl Database {
         // Generate new dir-id:
         let mut rng = thread_rng();
         let mut dir_id = rng.next_u64();
-        while self.contains_node_id(dir_id)? {
+        while self.contains_node_id(dir_id)?
+            || dir_id == 0 {
             dir_id = rng.next_u64();
         }
 
