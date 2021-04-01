@@ -11,9 +11,29 @@ pub fn dir_page(db: &Database, user_id: u64, dir_id: u64) -> Result<Html<Templat
         return Err(Error::NoSuchUser);
     };
 
+    // Get dir as struct:
+    let dir = if let Some(d) = db.get_dir(dir_id)? {
+        d
+    } else {
+        return Err(Error::NoSuchDir);
+    };
+
+    // Create Vec of ancestors:
+    let mut path_nodes = Vec::new();
+    path_nodes.push(dir);
+    while path_nodes.last().unwrap().parent_id != 0 {
+        let next_parent = if let Some(d) = db.get_dir(path_nodes.last().unwrap().parent_id)? {
+            d
+        } else {
+            return Err(Error::NoSuchDir);
+        };
+        path_nodes.push(next_parent);
+    }
+
+    // Create context:
     let mut cont = Context::new();
     cont.insert("USERNAME", &user.name);
-    cont.insert("DIR_ID", format!("{:x}", dir_id).as_str());
+    cont.insert("PATH_NODES", &path_nodes);
 
     let files = db.get_files_by_parent(dir_id)?;
     cont.insert("FILES", &files);

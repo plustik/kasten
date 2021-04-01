@@ -45,6 +45,22 @@ fn init_template_engine(engines: &mut Engines) {
             ))))
         }
     }
-
     engines.tera.register_filter("tohex", hex_filter);
+
+    fn second_filter(in_value: Value, _: HashMap<String, Value>) -> tera::Result<Value> {
+        if let Value::Array(vec) = in_value {
+            if let Some(res) = vec.get(1) {
+                Ok(res.clone())
+            } else {
+                Err(tera::Error::from_kind(tera::ErrorKind::Msg(format!(
+                    "Index out of bounds: 1"
+                ))))
+            }
+        } else {
+            Err(tera::Error::from_kind(tera::ErrorKind::Msg(format!(
+                "Wrong type: Expected Array"
+            ))))
+        }
+    }
+    engines.tera.register_filter("second", second_filter);
 }

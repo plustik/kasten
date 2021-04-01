@@ -208,19 +208,21 @@ impl Database {
         })
     }
 
-
     /// Returns the directory with the given id, it it exists in the DB.
     pub fn get_dir(&self, id: u64) -> sled::Result<Option<Dir>> {
-        self.dir_tree.get(&id.to_be_bytes())
-            .map(|opt| { opt.map(|bytes| {
+        self.dir_tree.get(&id.to_be_bytes()).map(|opt| {
+            opt.map(|bytes| {
                 let parent_id = u64::from_be_bytes(bytes[0..8].try_into().unwrap());
                 let owner_id = u64::from_be_bytes(bytes[8..16].try_into().unwrap());
-                let child_number: usize = u16::from_be_bytes(bytes[16..18].try_into().unwrap()) as usize;
+                let child_number: usize =
+                    u16::from_be_bytes(bytes[16..18].try_into().unwrap()) as usize;
                 let mut child_ids = Vec::with_capacity(child_number);
                 for i in 0..child_number {
-                    child_ids.push(u64::from_be_bytes(bytes[(18 + i * 8)..(26 + i * 8)].try_into().unwrap()));
+                    child_ids.push(u64::from_be_bytes(
+                        bytes[(18 + i * 8)..(26 + i * 8)].try_into().unwrap(),
+                    ));
                 }
-                let name = String::from_utf8(Vec::from(&bytes[(26 + child_number * 8)..])).unwrap();
+                let name = String::from_utf8(Vec::from(&bytes[(18 + child_number * 8)..])).unwrap();
 
                 Dir {
                     id,
@@ -229,7 +231,8 @@ impl Database {
                     child_ids,
                     name,
                 }
-            }) })
+            })
+        })
     }
 
     fn get_dirs_childs(&self, dir_id: u64) -> Result<Vec<u64>, Error> {
@@ -294,10 +297,10 @@ impl Database {
         Ok(res)
     }
 
-
     // Checks, whether the DB contains a file or directory with the given id.
     fn contains_node_id(&self, id: u64) -> sled::Result<bool> {
-        Ok(self.file_tree.contains_key(id.to_be_bytes())? || self.dir_tree.contains_key(id.to_be_bytes())?)
+        Ok(self.file_tree.contains_key(id.to_be_bytes())?
+            || self.dir_tree.contains_key(id.to_be_bytes())?)
     }
 
     /// Inserts a new file with the given attributes in the DB.
@@ -311,8 +314,7 @@ impl Database {
         // Generate new file-id:
         let mut rng = thread_rng();
         let mut file_id = rng.next_u64();
-        while self.contains_node_id(file_id)?
-            || file_id == 0 {
+        while self.contains_node_id(file_id)? || file_id == 0 {
             file_id = rng.next_u64();
         }
 
@@ -363,25 +365,19 @@ impl Database {
 
     /// Inserts a new dir with the given attributes in the DB.
     /// If no errors occour, a representaion of the new dir is returned.
-    pub fn insert_new_dir(
-        &self,
-        parent_id: u64,
-        owner_id: u64,
-        name: &str,
-    ) -> Result<Dir, Error> {
+    pub fn insert_new_dir(&self, parent_id: u64, owner_id: u64, name: &str) -> Result<Dir, Error> {
         // Generate new dir-id:
         let mut rng = thread_rng();
         let mut dir_id = rng.next_u64();
-        while self.contains_node_id(dir_id)?
-            || dir_id == 0 {
+        while self.contains_node_id(dir_id)? || dir_id == 0 {
             dir_id = rng.next_u64();
         }
 
         // Byte representation of new dir:
         let mut data = Vec::from(&parent_id.to_be_bytes()[..]);
         data.extend_from_slice(&owner_id.to_be_bytes());
-        data.push(0);   // Child number
-        data.push(0);   // Child number
+        data.push(0); // Child number
+        data.push(0); // Child number
         data.extend_from_slice(name.as_bytes());
 
         self.dir_tree.transaction(|dir_tt| {

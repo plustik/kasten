@@ -196,10 +196,13 @@ fn index(db: State<Database>, session: UserSession) -> Result<Html<Template>, St
     })
 }
 
-
 // Shows the contents of the given directory.
 #[get("/dirs/<dir_id>/view.html")]
-fn dir_view(dir_id: Id, session: UserSession, db: State<Database>) -> Result<Html<Template>, Status> {
+fn dir_view(
+    dir_id: Id,
+    session: UserSession,
+    db: State<Database>,
+) -> Result<Html<Template>, Status> {
     // Check if user is allowed to see that directory:
     let dir = match db.get_dir(dir_id.inner()) {
         Ok(Some(d)) => d,
@@ -253,7 +256,6 @@ impl FromDataSimple for UploadFile {
         })
     }
 }
-
 
 #[post("/mkdir/<parent_id>/<dir_name>")]
 fn mkdir(
@@ -354,7 +356,6 @@ fn download_file(
         // TODO: Match against existing rules
         return Err(Status::Unauthorized);
     }
-
 
     // Respond with streamed file:
     let mut file_path = config.file_location.clone();

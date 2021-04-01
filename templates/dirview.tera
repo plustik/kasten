@@ -15,7 +15,10 @@
   <main>
     <div class="dir-view">
       <div class="dir-head">
-        <div id="dir-location-path">/home/</div>
+        <div id="dir-location-path">
+        {% set reversed_nodes = PATH_NODES | reverse %}
+        /{% for node in reversed_nodes %}<a class="dir-name" href="/dirs/{{ node.id | tohex }}/view.html">{{ node.name }}</a>/{% endfor %}
+        </div>
         <div id="dir-add-menu">
           <div id="dir-add-btn">[Add]</div>
           <div id="dir-add-drop" style="display: none">
@@ -26,7 +29,6 @@
       </div>
 
       <form id="upload-form" style="display:none">
-        <input id="dirid-field" type="hidden" value="{{ DIR_ID }}"/>
         <label for="upload-file">New file:</label><br>
         <input type="file" name="file" required multiple id="upload-file"/><br>
 
@@ -44,6 +46,13 @@
 
       <div class="dir-contentlist">
         <ul id="file-list">
+
+          {% set dir_id = PATH_NODES | first | get(key="id") | tohex %}
+          <li class="dir-item"><a id="current-dir-li" class="dir-name" href="/dirs/{{ dir_id }}/view.html" dir_id="{{ dir_id }}">./</a></li>
+          {% if PATH_NODES | first | get(key="parent_id") != 0 %}
+          <li class="dir-item"><a class="dir-name" href="/dirs/{{ PATH_NODES | second | get(key="id") | tohex }}/view.html">../</a></li>
+          {% endif %}
+
           {% for dirnode in DIRS %}
           <li class="dir-item"><a class="dir-name" href="/dirs/{{ dirnode.id | tohex }}/view.html">{{dirnode.name}}/</a></li>
           {% endfor %}

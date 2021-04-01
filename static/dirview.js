@@ -76,7 +76,7 @@ function hideUploadForm() {
 function uploadFile() {
 	const fileInput = document.getElementById("upload-file");
 	const files = fileInput.files;
-	const dirId = document.getElementById("dirid-field").value;
+	const dirId = document.getElementById("current-dir-li").getAttribute("dir_id");
 	
 	for (var i = 0; i < files.length; i++) {
 		const file = files.item(i);
@@ -109,7 +109,7 @@ function uploadFile() {
 function onPushFile(req) {
 	// Create new file list item:
 	let newLi = document.createElement("li");
-	newLi.innerHTML = '<a class="file-name" href="/files/' + Numer(req.id).toString(16) + '" download="' + req.name + '">' + req.name + '</a>';
+	newLi.innerHTML = '<a class="file-name" href="/files/' + Number(req.id).toString(16) + '" download="' + req.name + '">' + req.name + '</a>';
 	newLi.setAttribute("class", "file-item");
 
 	// Append new list item:
@@ -166,7 +166,7 @@ function onPushDir(req) {
 	// Create new dir list item:
 	let newLi = document.createElement("li");
 	newLi.innerHTML = req.name;
-	newLi.innerHTML = '<a class="dir-name" href="/dirs/' + Numer(req.id).toString(16) + '/view.html">' + req.name + '/</a>';
+	newLi.innerHTML = '<a class="dir-name" href="/dirs/' + Number(req.id).toString(16) + '/view.html">' + req.name + '/</a>';
 	newLi.setAttribute("class", "dir-item");
 
 	// Append new list item:

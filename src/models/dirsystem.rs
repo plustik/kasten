@@ -33,7 +33,7 @@ impl FsNode for File {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Dir {
     pub id: u64,
     pub parent_id: u64,
