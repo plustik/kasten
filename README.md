@@ -8,6 +8,8 @@ The project also contains the tool `bonbon`, which allows for adding, listing an
 
 Kasten was written to run on GNU/Linux. While it may work on other systems, it was only tested on Arch Linux and Ubuntu 18.04.
 
+You'll need the nightly version of rustc and Cargo to compile Kasten.
+
 ## Installing Kasten
 
 To build Kasten, follow these steps:
@@ -31,10 +33,12 @@ cargo build --release --workspace
 
 ## Using Kasten
 
-To use Kasten, just execute `./target/release/kasten`.
+To use Kasten, execute `./target/release/kasten`. Rocket will accept requests at `localhost:8000`.
 Kasten supports the following environment variables:
 - KASTEN_DB_LOCATION: The path at which the database is saved. (Defaults to ./var/server-sled-db)
 - KASTEN_FILE_LOCATION: The path at which the uploaded files are saved. (Defaults to ./var/files)
+- KASTEN_STATIC_FILES: The path at which the static files are saved. (Defaults to ./var/files)
+- ROCKET_TEMPLATE_DIR: The path at which the templates are stored. (Defaults to ./vat/templates)
 
 
 To use `bonbon` run `./target/release/bonbon [command]`.
