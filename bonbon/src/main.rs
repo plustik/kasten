@@ -17,8 +17,15 @@ fn main() {
         "userrm" => {
             user::userrm(args);
         }
+        "help" | "-h" | "--help" => {
+            println!("Usage: bonbon <COMMAND> [<ARGUMENTS>]");
+            println!("COMMANDS:");
+            println!("'useradd <db-location> <username> <password>'");
+            println!("'userlist <db-location>'");
+            println!("'userrm <db-location> <user-id>'");
+        }
         _ => {
-            println!("COMMANDS:\n'useradd'\n'userlist'\n'userrm'");
+            println!("COMMANDS:\n'useradd'\n'userlist'\n'userrm'\n'help'");
         }
     }
 }

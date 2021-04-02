@@ -3,8 +3,8 @@ use std::{
     path::PathBuf,
 };
 
-static DATABASE_LOCATION: &str = "./test-env/server-sled-db";
-static FILE_LOCATION: &str = "./test-env/files/";
+static DATABASE_LOCATION: &str = "./var/server-sled-db";
+static FILE_LOCATION: &str = "./var/files/";
 
 pub struct Config {
     pub database_location: PathBuf,
