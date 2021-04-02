@@ -6,7 +6,7 @@ The project also contains the tool `bonbon`, which allows for adding, listing an
 
 ## Prerequisites
 
-Kasten was written to run on GNU/Linux. While it may work on other systems it was only tested on Arch Linux and Ubuntu 18.04.
+Kasten was written to run on GNU/Linux. While it may work on other systems, it was only tested on Arch Linux and Ubuntu 18.04.
 
 ## Installing Kasten
 
@@ -37,7 +37,8 @@ Kasten supports the following environment variables:
 - KASTEN_FILE_LOCATION: The path at which the uploaded files are saved. (Defaults to ./var/files)
 
 
-To use `bonbon` run `./target/release/bonbon [command]`. To get a list of available commands run `./target/release/bonbon --help`.
+To use `bonbon` run `./target/release/bonbon [command]`.
+To get a list of available commands run `./target/release/bonbon --help`.
 
 ## TODO
 - File encryption
