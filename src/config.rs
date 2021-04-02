@@ -1,4 +1,7 @@
-use std::path::PathBuf;
+use std::{
+    env,
+    path::PathBuf,
+};
 
 static DATABASE_LOCATION: &str = "./test-env/server-sled-db";
 static FILE_LOCATION: &str = "./test-env/files/";
@@ -10,9 +13,12 @@ pub struct Config {
 
 impl Config {
     pub fn new() -> Self {
+        // Read environment variables:
+        let db_location = env::var("KASTEN_DB_LOCATION").unwrap_or(String::from(DATABASE_LOCATION));
+        let file_location = env::var("KASTEN_FILE_LOCATION").unwrap_or(String::from(FILE_LOCATION));
         Config {
-            database_location: PathBuf::from(DATABASE_LOCATION),
-            file_location: PathBuf::from(FILE_LOCATION),
+            database_location: PathBuf::from(db_location),
+            file_location: PathBuf::from(file_location),
         }
     }
 }
