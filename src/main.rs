@@ -25,11 +25,14 @@ pub enum Error {
     DbError(sled::Error),
     IoError(std::io::Error),
     ParseIntError(std::num::ParseIntError),
+    EncodingError,
     TransactionAbortError,
+    TransactionConflictError,
     TransactionStorageError,
     EntryNotFound,
     NoSuchUser,
     NoSuchDir,
+    NoSuchFile,
 }
 
 impl Display for Error {
@@ -40,11 +43,14 @@ impl Display for Error {
             DbError(e) => write!(f, "DB-Error: {}", e),
             IoError(e) => write!(f, "IoError: {}", e),
             ParseIntError(_) => write!(f, "Could not parse the given number."),
+            EncodingError => write!(f, "Could not decode data."),
             TransactionAbortError => write!(f, "TransactionError: Abort"),
+            TransactionConflictError => write!(f, "TransactionError: Conflict"),
             TransactionStorageError => write!(f, "TransactionError: StorageError"),
             EntryNotFound => write!(f, "The given entry was not found in the DB."),
             NoSuchUser => write!(f, "The given user does not exist in the DB."),
             NoSuchDir => write!(f, "The given directory does not exist in the DB."),
+            NoSuchFile => write!(f, "The given file does not exist in the DB."),
         }
     }
 }
@@ -70,5 +76,20 @@ impl<T> From<sled::transaction::TransactionError<T>> for Error {
             sled::transaction::TransactionError::Abort(_) => Error::TransactionAbortError,
             sled::transaction::TransactionError::Storage(e) => Error::DbError(e),
         }
+    }
+}
+impl From<sled::transaction::UnabortableTransactionError> for Error {
+    fn from(err: sled::transaction::UnabortableTransactionError) -> Self {
+        match err {
+            sled::transaction::UnabortableTransactionError::Conflict => {
+                Error::TransactionConflictError
+            }
+            sled::transaction::UnabortableTransactionError::Storage(e) => Error::DbError(e),
+        }
+    }
+}
+impl From<std::string::FromUtf8Error> for Error {
+    fn from(_: std::string::FromUtf8Error) -> Self {
+        Error::EncodingError
     }
 }

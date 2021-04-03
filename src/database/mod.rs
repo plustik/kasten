@@ -222,14 +222,24 @@ impl Database {
         owner_id: u64,
         name: &str,
     ) -> Result<File, Error> {
-
         self.fs_db.insert_new_file(parent_id, owner_id, name)
+    }
+
+    /// Removes the file with the given id from the DB and returns its representation. Returns an
+    /// Error with type NoSuchFile, if there is no file with the given id in the DB.
+    pub fn remove_file(&self, id: u64) -> Result<File, Error> {
+        self.fs_db.remove_file(id)
     }
 
     /// Inserts a new dir with the given attributes in the DB.
     /// If no errors occour, a representation of the new dir is returned.
     pub fn insert_new_dir(&self, parent_id: u64, owner_id: u64, name: &str) -> Result<Dir, Error> {
-
         self.fs_db.insert_new_dir(parent_id, owner_id, name)
+    }
+
+    /// Removes the directory with the given id from the DB and returns its representation.
+    /// Returns an Error with type NoSuchDir, if there is no directory with the given id in the DB.
+    pub fn remove_dir(&self, id: u64) -> Result<Dir, Error> {
+        self.fs_db.remove_dir(id)
     }
 }

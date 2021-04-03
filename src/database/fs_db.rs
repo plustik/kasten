@@ -167,6 +167,65 @@ impl FsDatabase {
         })
     }
 
+    /// Removes the file with the given id from the DB and returns its representation. Returns an
+    /// Error with type NoSuchFile, if there is no file with the given id in the DB.
+    pub fn remove_file(&self, id: u64) -> Result<File, Error> {
+        (&self.file_tree, &self.dir_tree)
+            .transaction(|(file_tt, dir_tt)| {
+                // Remove file from file-tree:
+                let bytes = match file_tt.remove(&id.to_be_bytes())? {
+                    Some(b) => b,
+                    None => {
+                        return Err(ConflictableTransactionError::Abort(Error::NoSuchFile));
+                    }
+                };
+
+                let res = File {
+                    id,
+                    parent_id: u64::from_be_bytes(bytes[0..8].try_into().unwrap()),
+                    owner_id: u64::from_be_bytes(bytes[8..16].try_into().unwrap()),
+                    name: String::from_utf8(Vec::from(&bytes[16..])).unwrap(),
+                };
+
+                // Remove file from parent:
+                // Get current parent representation:
+                let mut parent_bytes = match dir_tt.get(res.parent_id.to_be_bytes()) {
+                    Ok(Some(b)) => Vec::from(b.as_ref()),
+                    Ok(None) => {
+                        return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
+                    }
+                    Err(e) => {
+                        return Err(ConflictableTransactionError::Abort(Error::from(e)));
+                    }
+                };
+
+                // Decrease child-number:
+                let mut child_number = u16::from_be_bytes(parent_bytes[16..18].try_into().unwrap());
+                // TODO: Handle overflow:
+                child_number -= 1;
+                parent_bytes[16] = child_number.to_be_bytes()[0];
+                parent_bytes[17] = child_number.to_be_bytes()[1];
+                // Add all childs, except the given one:
+                for i in 0..(child_number as usize + 1) {
+                    let child_id = u64::from_be_bytes(
+                        parent_bytes[(18 + i * 8)..(26 + i * 8)].try_into().unwrap(),
+                    );
+                    if child_id == id {
+                        std::mem::drop(parent_bytes.drain((18 + i * 8)..(26 + i * 8)));
+                        break;
+                    }
+                }
+
+                // Insert new parent directory:
+                if let Err(e) = dir_tt.insert(&res.parent_id.to_be_bytes(), parent_bytes) {
+                    return Err(ConflictableTransactionError::Abort(Error::from(e)));
+                }
+
+                Ok(res)
+            })
+            .map_err(|e| Error::from(e))
+    }
+
     /// Inserts a new dir with the given attributes in the DB.
     /// If no errors occour, a representation of the new dir is returned.
     pub fn insert_new_dir(&self, parent_id: u64, owner_id: u64, name: &str) -> Result<Dir, Error> {
@@ -223,5 +282,64 @@ impl FsDatabase {
             child_ids: Vec::new(),
             name: String::from(name),
         })
+    }
+
+    /// Removes the directory with the given id from the DB and returns its representation.
+    /// Returns an Error with type NoSuchDir, if there is no directory with the given id in the DB.
+    pub fn remove_dir(&self, id: u64) -> Result<Dir, Error> {
+        self.dir_tree
+            .transaction(|dir_tt| {
+                // Remove dir from dir-tree:
+                let bytes = match dir_tt.remove(&id.to_be_bytes())? {
+                    Some(b) => b,
+                    None => {
+                        return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
+                    }
+                };
+
+                let res = match Dir::from_db_entry(id, &bytes) {
+                    Ok(d) => d,
+                    Err(e) => {
+                        return Err(ConflictableTransactionError::Abort(e));
+                    }
+                };
+
+                // Remove directory from parent:
+                // Get current parent representation:
+                let mut parent_bytes = match dir_tt.get(res.parent_id.to_be_bytes()) {
+                    Ok(Some(b)) => Vec::from(b.as_ref()),
+                    Ok(None) => {
+                        return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
+                    }
+                    Err(e) => {
+                        return Err(ConflictableTransactionError::Abort(Error::from(e)));
+                    }
+                };
+
+                // Decrease child-number:
+                let mut child_number = u16::from_be_bytes(parent_bytes[16..18].try_into().unwrap());
+                // TODO: Handle overflow:
+                child_number -= 1;
+                parent_bytes[16] = child_number.to_be_bytes()[0];
+                parent_bytes[17] = child_number.to_be_bytes()[1];
+                // Add all childs, except the given one:
+                for i in 0..(child_number as usize + 1) {
+                    let child_id = u64::from_be_bytes(
+                        parent_bytes[(18 + i * 8)..(26 + i * 8)].try_into().unwrap(),
+                    );
+                    if child_id == id {
+                        std::mem::drop(parent_bytes.drain((18 + i * 8)..(26 + i * 8)));
+                        break;
+                    }
+                }
+
+                // Insert new parent directory:
+                if let Err(e) = dir_tt.insert(&res.parent_id.to_be_bytes(), parent_bytes) {
+                    return Err(ConflictableTransactionError::Abort(Error::from(e)));
+                }
+
+                Ok(res)
+            })
+            .map_err(|e| Error::from(e))
     }
 }
