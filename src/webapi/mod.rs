@@ -19,7 +19,10 @@ pub fn init(db: Database, config: Config) -> Result<(), ()> {
     Rocket::ignite()
         .attach(Template::custom(init_template_engine))
         .mount("/", content_routes::get_routes())
-        .mount("/static", StaticFiles::new(config.static_files.as_path(), serve::Options::None))
+        .mount(
+            "/static",
+            StaticFiles::new(config.static_files.as_path(), serve::Options::None),
+        )
         .manage(config)
         .manage(db)
         .register(error_catchers())

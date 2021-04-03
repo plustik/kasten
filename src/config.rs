@@ -1,7 +1,4 @@
-use std::{
-    env,
-    path::PathBuf,
-};
+use std::{env, path::PathBuf};
 
 static DATABASE_LOCATION: &str = "./var/server-sled-db";
 static FILE_LOCATION: &str = "./var/files/";
