@@ -27,7 +27,7 @@ function registerCallbacks() {
 
 
 	const addBtn = document.getElementById("dir-add-btn");
-	addBtn.addEventListener('click', toogleAddDropdown);
+	addBtn.addEventListener('click', toggleAddDropdown);
 
 	// Edit forms:
 
@@ -42,10 +42,86 @@ function registerCallbacks() {
 
 	const hideMkdirFormBtn = document.getElementById("hide-mkdir-form-btn");
 	hideMkdirFormBtn.addEventListener('click', hideMkdirForm);
+
+	// Dir action buttons:
+
+	var dirActionMenus = document.getElementsByClassName("dir-action-menu");
+	var dirActionBtns = [];
+	var dirActionDrops = [];
+	for (let i=0; i<dirActionMenus.length; i++) {
+		// Find button and dropdown:
+		for (let j=0; j < dirActionMenus[i].childNodes.length; j++) {
+			if (dirActionMenus[i].childNodes[j].className === "dir-action-btn") {
+				dirActionBtns[i] = dirActionMenus[i].childNodes[j];
+			} else if (dirActionMenus[i].childNodes[j].className === "dir-action-drop") {
+				dirActionDrops[i] = dirActionMenus[i].childNodes[j];
+			}
+
+		}
+
+		// Toggle dir action dropdown:
+		var index = i;
+		dirActionBtns[index].addEventListener("click", () => {
+
+			if (dirActionDrops[index].style.display === "none") {;
+				dirActionDrops[index].style.display = "block";
+			} else {
+				dirActionDrops[index].style.display = "none";
+			}
+		});
+
+		// Remove directory function:
+		// Find rm button:
+		const actionElements = dirActionDrops[i].childNodes;
+		for (let j=0; j < actionElements.length; j++) {
+			if (actionElements[j].className === "drop-item" && actionElements[j].textContent === "Remove") {
+				actionElements[j].addEventListener("click", () => {
+					console.log(index);
+					console.log(dirActionMenus);
+					removeDirLi(dirActionMenus[index].parentElement);
+				});
+			}
+		}
+	}
+
+	// File action menu/buttons:
+
+	var menus = document.getElementsByClassName("file-action-menu");
+	for (let i=0; i<menus.length; i++) {
+		// Find button and dropdown:
+		for (let j=0; j < menus[i].childNodes.length; j++) {
+			if (menus[i].childNodes[j].className === "file-action-btn") {
+				var btn = menus[i].childNodes[j];
+			} else if (menus[i].childNodes[j].className === "file-action-drop") {
+				var dropdown = menus[i].childNodes[j];
+			}
+
+		}
+
+		// Toggle file action dropdown:
+		btn.addEventListener("click", () => {
+			if (dropdown.style.display === "none") {;
+				dropdown.style.display = "block";
+			} else {
+				dropdown.style.display = "none";
+			}
+		});
+
+		// Remove file function:
+		// Find rm button:
+		const actionElements = dropdown.childNodes;
+		for (let j=0; j < actionElements.length; j++) {
+			if (actionElements[j].className === "drop-item" && actionElements[j].textContent === "Remove") {
+				actionElements[j].addEventListener("click", () => {
+					removeFileLi(menus[i].parentElement);
+				});
+			}
+		}
+	}
 }
 
 
-function toogleAddDropdown() {
+function toggleAddDropdown() {
 	const addDropdown = document.getElementById("dir-add-drop");
 	if (addDropdown.style.display === "none") {;
 		addDropdown.style.display = "block";
@@ -140,12 +216,12 @@ function hideMkdirForm() {
 
 function addDir() {
 	const dirName = document.getElementById("dirname").value;
-	const parentId = document.getElementById("dirid-field").value;
+	const parentId = document.getElementById("current-dir-li").getAttribute("dir_id");
 
 	let header = new Headers();
 	header.set("Accept", "text/json");
 
-	fetch("/mkdir" + "/" + parentId + "/" + encodeURIComponent(dirName),
+	fetch("/mkdir/" + parentId + "/" + encodeURIComponent(dirName),
 		{
 			method: "POST",
 			headers: header,
@@ -175,4 +251,61 @@ function onPushDir(req) {
 
 	// Hide upload form:
 	hideMkdirForm();
+}
+
+//
+// Action buttons:
+//
+function removeDirLi(li) {
+	for (let i=0; i<li.childNodes.length; i++) {
+		if (li.childNodes[i].className === "dir-name") {
+			const dirId = li.childNodes[i].getAttribute("dir_id");
+
+			let header = new Headers();
+			header.set("Accept", "text/json");
+
+			fetch("/dirs/" + dirId,
+				{
+					method: "DELETE",
+					headers: header,
+				})
+				.then(function(res) {
+					if (res.status == 200) {
+						li.parentElement.removeChild(li);
+						return res.json()
+					} else {
+						// TODO: Show error
+					}
+				});
+
+			break;
+		}
+	}
+}
+
+function removeFileLi(li) {
+	for (let i=0; i<li.childNodes.length; i++) {
+		if (li.childNodes[i].className === "file-name") {
+			const dirId = li.childNodes[i].getAttribute("file_id");
+
+			let header = new Headers();
+			header.set("Accept", "text/json");
+
+			fetch("/files/" + dirId,
+				{
+					method: "DELETE",
+					headers: header,
+				})
+				.then(function(res) {
+					if (res.status == 200) {
+						li.parentElement.removeChild(li);
+						return res.json()
+					} else {
+						// TODO: Show error
+					}
+				});
+
+			break;
+		}
+	}
 }

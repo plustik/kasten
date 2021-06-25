@@ -54,10 +54,26 @@
           {% endif %}
 
           {% for dirnode in DIRS %}
-          <li class="dir-item"><a class="dir-name" href="/dirs/{{ dirnode.id | tohex }}/view.html">{{dirnode.name}}/</a></li>
+          <li class="dir-item"><a class="dir-name" href="/dirs/{{ dirnode.id | tohex }}/view.html" dir_id="{{ dirnode.id | tohex }}">{{dirnode.name}}/</a>
+            <span class="dir-action-menu">
+              <span class="dir-action-btn">[...]</span>
+              <div class="dir-action-drop" style="display: none">
+                <div class="drop-item">Remove</div>
+                <div class="drop-item">Zip</div>
+              </div>
+            </span>
+          </li>
           {% endfor %}
+
           {% for file in FILES %}
-          <li class="file-item"><a class="file-name" href="/files/{{ file.id | tohex }}" download="{{file.name}}">{{file.name}}</a></li>
+          <li class="file-item"><a class="file-name" href="/files/{{ file.id | tohex }}" download="{{file.name}}" file_id="{{ file.id | tohex }}">{{file.name}}</a>
+            <span class="file-action-menu">
+              <span class="file-action-btn">[...]</span>
+              <div class="file-action-drop" style="display: none">
+                <div class="drop-item">Remove</div>
+              </div>
+            </span>
+          </li>
           {% endfor %}
         </ul>
 
