@@ -40,7 +40,9 @@ pub fn get_routes() -> Vec<Route> {
         dir_view,
         mkdir,
         upload_file,
-        download_file
+        download_file,
+        remove_dir,
+        remove_file,
     ]
 }
 
@@ -222,14 +224,20 @@ fn dir_view(
 
     // Responde with dirview page:
     content_pages::dir_page(&db, session.user_id, dir_id.inner()).map_err(|err| {
-        if let Error::DbError(e) = err {
-            // TODO: Add logging
-            //error!("DB-Error while GET /: {}", e);
-            println!("DB-Error while GET /: {}", e);
+        match err {
+            Error::DbError(e) => {
+                // TODO: Add logging
+                //error!("DB-Error while GET /: {}", e);
+                println!("DB-Error while GET /: {}", e);
 
-            Status::InternalServerError
-        } else {
-            panic!("Error: {}", err);
+                Status::InternalServerError
+            }
+            Error::NoSuchDir => {
+                Status::NotFound
+            }
+            err => {
+                panic!("Error: {}", err);
+            }
         }
     })
 }
@@ -368,4 +376,111 @@ fn download_file(
             Err(Status::InternalServerError)
         }
     }
+}
+
+#[delete("/dirs/<dir_id>")]
+fn remove_dir(
+    dir_id: Id,
+    session: UserSession,
+    db: State<Database>,
+) -> Result<Content<String>, Status> {
+    // Check, if the user is allowed to access the directory:
+    let dir = match dbg!(db.get_dir(dir_id.inner())) {
+        Ok(Some(d)) => d,
+        Ok(None) => {
+            return Err(Status::NotFound);
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!("Error on GET /files/...: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    };
+    if dir.owner_id != session.user_id {
+        // TODO: Match against existing rules
+        return Err(Status::Unauthorized);
+    }
+
+    // Remove directory:
+    match dbg!(db.remove_dir(dir_id.inner())) {
+        Ok(dir) => {
+            // Send directory as response:
+            let res = match serde_json::to_string(&dir) {
+                Ok(v) => v,
+                Err(_) => {
+                    // TODO: Logging and remove from DB
+                    return Err(Status::InternalServerError);
+                }
+            };
+
+            Ok(Content(ContentType::JSON, res))
+        }
+        Err(Error::NoSuchDir) => {
+            Err(Status::NotFound)
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!("Error on GET /files/...: {}", e);
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
+#[delete("/files/<file_id>")]
+fn remove_file(
+    file_id: Id,
+    session: UserSession,
+    db: State<Database>,
+    config: State<Config>,
+) -> Result<Content<String>, Status> {
+    // Check, if the user is allowed to access the file:
+    let file = match db.get_file(file_id.inner()) {
+        Ok(Some(d)) => d,
+        Ok(None) => {
+            return Err(Status::NotFound);
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!("Error on DELETE /files/<file_id>: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    };
+    if file.owner_id != session.user_id {
+        // TODO: Match against existing rules
+        return Err(Status::Unauthorized);
+    }
+
+    // Remove file from DB:
+    let res = match db.remove_file(file_id.inner()) {
+        Ok(file) => {
+            // Create JSON of directory:
+            match serde_json::to_string(&file) {
+                Ok(v) => v,
+                Err(_) => {
+                    // TODO: Logging and remove from DB
+                    return Err(Status::InternalServerError);
+                }
+            }
+        }
+        Err(Error::NoSuchDir) => {
+            return Err(Status::NotFound);
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!("Error on DELETE /files/<file_id>: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    // Remove file from FS:
+    let mut file_path = config.file_location.clone();
+    file_path.push(format!("{:x}", file_id.inner()));
+    if let Err(e) = std::fs::remove_file(file_path) {
+        // TODO: Logging
+        println!("Error on DELETE /files/<file_id>: {}", e);
+        return Err(Status::InternalServerError);
+    }
+
+
+    Ok(Content(ContentType::JSON, res))
 }

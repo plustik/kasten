@@ -8,6 +8,7 @@ use crate::{
     Error,
 };
 
+
 pub struct FsDatabase {
     file_tree: Tree, // K: file_id, V: parent_id, owner_id, name
     dir_tree: Tree,  // K: dir_id, V: parent_id, owner_id, child_number(u16), file/dir_ids..., name
@@ -101,10 +102,20 @@ impl FsDatabase {
         Ok(res)
     }
 
+    /// Checks, whether the DB contains a file with the given id.
+    fn is_file(&self, id: u64) -> sled::Result<bool> {
+        self.file_tree.contains_key(id.to_be_bytes())
+    }
+
+    /// Checks, whether the DB contains a dir with the given id.
+    fn is_dir(&self, id: u64) -> sled::Result<bool> {
+        self.dir_tree.contains_key(id.to_be_bytes())
+    }
+
     /// Checks, whether the DB contains a file or directory with the given id.
     fn contains_node_id(&self, id: u64) -> sled::Result<bool> {
-        Ok(self.file_tree.contains_key(id.to_be_bytes())?
-            || self.dir_tree.contains_key(id.to_be_bytes())?)
+        Ok(self.is_file(id)?
+            || self.is_dir(id)?)
     }
 
     /// Inserts a new file with the given attributes in the DB.
@@ -192,7 +203,7 @@ impl FsDatabase {
                 let mut parent_bytes = match dir_tt.get(res.parent_id.to_be_bytes()) {
                     Ok(Some(b)) => Vec::from(b.as_ref()),
                     Ok(None) => {
-                        return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
+                        return Err(ConflictableTransactionError::Abort(Error::InconsistentDbState));
                     }
                     Err(e) => {
                         return Err(ConflictableTransactionError::Abort(Error::from(e)));
@@ -287,59 +298,75 @@ impl FsDatabase {
     /// Removes the directory with the given id from the DB and returns its representation.
     /// Returns an Error with type NoSuchDir, if there is no directory with the given id in the DB.
     pub fn remove_dir(&self, id: u64) -> Result<Dir, Error> {
-        self.dir_tree
-            .transaction(|dir_tt| {
-                // Remove dir from dir-tree:
-                let bytes = match dir_tt.remove(&id.to_be_bytes())? {
-                    Some(b) => b,
-                    None => {
-                        return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
-                    }
-                };
+        // Return an Err, if it is the root dir of an user:
+        if let Some(b) = dbg!(self.dir_tree.get(id.to_be_bytes()))? {
+            let dir = dbg!(Dir::from_db_entry(id, &b))?;
+            if dir.parent_id == 0 {
+                return Err(Error::ForbiddenAction);
+            }
+        } else {
+            return Err(Error::NoSuchDir);
+        };
 
-                let res = match Dir::from_db_entry(id, &bytes) {
-                    Ok(d) => d,
-                    Err(e) => {
-                        return Err(ConflictableTransactionError::Abort(e));
-                    }
-                };
+        dbg!("test l310");
+        (&self.dir_tree, &self.file_tree).transaction(|(dir_tt, file_tt)| {
+            let dir = if let Some(b) = dbg!(self.dir_tree.get(id.to_be_bytes()))? {
+                dbg!(Dir::from_db_entry(id, &b).map_err(|e| ConflictableTransactionError::Abort(e))?)
+            } else {
+                return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
+            };
 
-                // Remove directory from parent:
-                // Get current parent representation:
-                let mut parent_bytes = match dir_tt.get(res.parent_id.to_be_bytes()) {
-                    Ok(Some(b)) => Vec::from(b.as_ref()),
-                    Ok(None) => {
-                        return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
-                    }
-                    Err(e) => {
-                        return Err(ConflictableTransactionError::Abort(Error::from(e)));
-                    }
-                };
-
-                // Decrease child-number:
-                let mut child_number = u16::from_be_bytes(parent_bytes[16..18].try_into().unwrap());
-                // TODO: Handle overflow:
-                child_number -= 1;
-                parent_bytes[16] = child_number.to_be_bytes()[0];
-                parent_bytes[17] = child_number.to_be_bytes()[1];
-                // Add all childs, except the given one:
-                for i in 0..(child_number as usize + 1) {
-                    let child_id = u64::from_be_bytes(
-                        parent_bytes[(18 + i * 8)..(26 + i * 8)].try_into().unwrap(),
-                    );
-                    if child_id == id {
-                        std::mem::drop(parent_bytes.drain((18 + i * 8)..(26 + i * 8)));
-                        break;
-                    }
+            // Remove directory from parent:
+            // Get current parent representation:
+            let mut parent_bytes = match dir_tt.get(dir.parent_id.to_be_bytes()) {
+                Ok(Some(b)) => Vec::from(b.as_ref()),
+                Ok(None) => {
+                    return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
                 }
-
-                // Insert new parent directory:
-                if let Err(e) = dir_tt.insert(&res.parent_id.to_be_bytes(), parent_bytes) {
+                Err(e) => {
                     return Err(ConflictableTransactionError::Abort(Error::from(e)));
                 }
+            };
 
-                Ok(res)
-            })
-            .map_err(|e| Error::from(e))
+            // Decrease child-number:
+            let mut child_number = dbg!(u16::from_be_bytes(parent_bytes[16..18].try_into().unwrap()));
+            // TODO: Handle overflow:
+            child_number -= 1;
+            parent_bytes[16] = child_number.to_be_bytes()[0];
+            parent_bytes[17] = child_number.to_be_bytes()[1];
+            // Add all childs, except the given one:
+            for i in 0..(child_number as usize + 1) {
+                let child_id = u64::from_be_bytes(
+                    parent_bytes[(18 + i * 8)..(26 + i * 8)].try_into().unwrap(),
+                );
+                if child_id == id {
+                    std::mem::drop(parent_bytes.drain((18 + i * 8)..(26 + i * 8)));
+                    break;
+                }
+            }
+
+            // Insert new parent directory:
+            if let Err(e) = dir_tt.insert(&dir.parent_id.to_be_bytes(), parent_bytes) {
+                return Err(ConflictableTransactionError::Abort(Error::from(e)));
+            }
+
+            // Remove childs from DB:
+            let mut todo_stack: Vec<u64> = dir.child_ids.iter().map(|int_ref| *int_ref).collect();
+
+            while !todo_stack.is_empty() {
+                let next_id = todo_stack.pop().unwrap();
+                dbg!(next_id);
+                if let Some(bytes) = dir_tt.remove(&next_id.to_be_bytes())? {
+                    let dir = dbg!(Dir::from_db_entry(next_id, &bytes).map_err(|e| ConflictableTransactionError::Abort(e))?);
+                    for ch in dir.child_ids {
+                        todo_stack.push(ch);
+                    }
+                } else {
+                    file_tt.remove(&next_id.to_be_bytes())?;
+                }
+            }
+
+            Ok(dir)
+        }).map_err(|err| Error::from(err))
     }
 }
