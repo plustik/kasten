@@ -363,6 +363,7 @@ impl FsDatabase {
                     }
                 } else {
                     file_tt.remove(&next_id.to_be_bytes())?;
+                    // TODO: Remove the file from storage
                 }
             }
 
