@@ -54,7 +54,10 @@ impl Display for Error {
             NoSuchDir => write!(f, "The given directory does not exist in the DB."),
             NoSuchFile => write!(f, "The given file does not exist in the DB."),
             InconsistentDbState => write!(f, "The DB was found in an inconsisten state."),
-            ForbiddenAction => write!(f, "Tried an action, that would result in a forbidden state."),
+            ForbiddenAction => write!(
+                f,
+                "Tried an action, that would result in a forbidden state."
+            ),
         }
     }
 }

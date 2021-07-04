@@ -1,7 +1,7 @@
 use chrono::{offset::Utc, DateTime, Duration};
 use rocket::{
-    State,
     request::{FromRequest, Outcome, Request},
+    State,
 };
 use serde::Serialize;
 

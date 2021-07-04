@@ -4,16 +4,13 @@ use argon2::{
 };
 use chrono::{offset::Utc, Duration};
 use rocket::{
-    fs::TempFile,
     form::{Form, FromForm},
+    fs::TempFile,
     http::{ContentType, Cookie, CookieJar, SameSite, Status},
     response::content::Html,
     Route, State,
 };
-use rocket_dyn_templates::{
-    Template,
-    tera::Context,
-};
+use rocket_dyn_templates::{tera::Context, Template};
 use std::fs::File;
 
 use crate::{
@@ -227,9 +224,7 @@ fn dir_view(
 
                 Status::InternalServerError
             }
-            Error::NoSuchDir => {
-                Status::NotFound
-            }
+            Error::NoSuchDir => Status::NotFound,
             err => {
                 panic!("Error: {}", err);
             }
@@ -375,9 +370,7 @@ fn remove_dir(
 
             Ok((ContentType::JSON, res))
         }
-        Err(Error::NoSuchDir) => {
-            Err(Status::NotFound)
-        }
+        Err(Error::NoSuchDir) => Err(Status::NotFound),
         Err(e) => {
             // TODO: Logging
             println!("Error on GET /files/...: {}", e);
@@ -440,7 +433,6 @@ fn remove_file(
         println!("Error on DELETE /files/<file_id>: {}", e);
         return Err(Status::InternalServerError);
     }
-
 
     Ok((ContentType::JSON, res))
 }

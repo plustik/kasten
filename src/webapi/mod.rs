@@ -3,25 +3,18 @@ use rocket::{
     Rocket,
 };
 use rocket_dyn_templates::{
-    Engines,
-    Template,
-    tera::{
-        Filter,
-        Value,
-    },
+    tera::{Filter, Value},
+    Engines, Template,
 };
 
-use std::collections::{
-    HashMap,
-    hash_map::RandomState,
-};
+use std::collections::{hash_map::RandomState, HashMap};
 
 use crate::{config::Config, database::Database};
 
 mod content_routes;
 mod errors;
+mod rest_api;
 use errors::error_catchers;
-
 
 pub async fn init(db: Database, config: Config) -> Result<(), rocket::Error> {
     Rocket::build()
@@ -31,30 +24,33 @@ pub async fn init(db: Database, config: Config) -> Result<(), rocket::Error> {
             "/static",
             FileServer::new(config.static_files.as_path(), fs::Options::None),
         )
+        .mount("/rest_api", rest_api::get_routes())
         .manage(config)
         .manage(db)
         .register("/", error_catchers())
-        .ignite().await?
-        .launch().await
+        .ignite()
+        .await?
+        .launch()
+        .await
 }
 
 fn init_template_engine(engines: &mut Engines) {
     // Add filter to show integers as hex values:
     struct HexFilter;
     impl Filter for HexFilter {
-        fn filter(&self, in_value: &Value, _: &HashMap<String, Value, RandomState>) -> tera::Result<Value> {
+        fn filter(
+            &self,
+            in_value: &Value,
+            _: &HashMap<String, Value, RandomState>,
+        ) -> tera::Result<Value> {
             if let Value::Number(num) = in_value {
                 if num.is_u64() {
                     Ok(Value::String(format!("{:x}", num.as_u64().unwrap())))
                 } else {
-                    Err(tera::Error::msg(format!(
-                        "Number out of bounds: Not a u64"
-                    )))
+                    Err(tera::Error::msg(format!("Number out of bounds: Not a u64")))
                 }
             } else {
-                Err(tera::Error::msg(format!(
-                    "Not a Number"
-                )))
+                Err(tera::Error::msg(format!("Not a Number")))
             }
         }
     }
@@ -62,19 +58,19 @@ fn init_template_engine(engines: &mut Engines) {
 
     struct SecondFilter;
     impl Filter for SecondFilter {
-        fn filter(&self, in_value: &Value, _: &HashMap<String, Value, RandomState>) -> tera::Result<Value> {
+        fn filter(
+            &self,
+            in_value: &Value,
+            _: &HashMap<String, Value, RandomState>,
+        ) -> tera::Result<Value> {
             if let Value::Array(vec) = in_value {
                 if let Some(res) = vec.get(1) {
                     Ok(res.clone())
                 } else {
-                    Err(tera::Error::msg(format!(
-                        "Index out of bounds: 1"
-                    )))
+                    Err(tera::Error::msg(format!("Index out of bounds: 1")))
                 }
             } else {
-                Err(tera::Error::msg(format!(
-                    "Wrong type: Expected Array"
-                )))
+                Err(tera::Error::msg(format!("Wrong type: Expected Array")))
             }
         }
     }
