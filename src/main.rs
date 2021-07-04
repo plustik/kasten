@@ -1,4 +1,3 @@
-#![feature(proc_macro_hygiene, decl_macro)]
 #[macro_use]
 extern crate rocket;
 
@@ -12,12 +11,13 @@ mod database;
 mod models;
 mod webapi;
 
-fn main() {
+#[rocket::main]
+async fn main() {
     let config = config::Config::new();
 
     let db = database::Database::init(&config).unwrap();
 
-    webapi::init(db, config).unwrap();
+    webapi::init(db, config).await.unwrap();
 }
 
 #[derive(Debug)]

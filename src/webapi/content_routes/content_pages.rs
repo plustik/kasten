@@ -1,6 +1,6 @@
 use rocket::response::content::Html;
-use rocket_contrib::templates::Template;
-use tera::Context;
+use rocket_dyn_templates::Template;
+use rocket_dyn_templates::tera::Context;
 
 use crate::{database::Database, Error};
 

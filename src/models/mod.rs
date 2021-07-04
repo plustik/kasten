@@ -1,4 +1,4 @@
-use rocket::{http::RawStr, request::FromParam};
+use rocket::request::FromParam;
 
 use crate::Error;
 
@@ -19,7 +19,7 @@ impl Id {
 impl<'r> FromParam<'r> for Id {
     type Error = Error;
 
-    fn from_param(param: &'r RawStr) -> Result<Self, Self::Error> {
+    fn from_param(param: &'r str) -> Result<Self, Self::Error> {
         Ok(Id(u64::from_str_radix(param, 16)?))
     }
 }

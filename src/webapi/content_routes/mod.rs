@@ -3,23 +3,18 @@ use argon2::{
     Argon2,
 };
 use chrono::{offset::Utc, Duration};
-use rand::{thread_rng, RngCore};
 use rocket::{
-    data::{Data, FromDataSimple, Outcome},
-    http::{ContentType, Cookie, Cookies, RawStr, SameSite, Status},
-    request::{Form, FromForm, Request},
-    response::{
-        content::{Content, Html},
-        Stream,
-    },
+    fs::TempFile,
+    form::{Form, FromForm},
+    http::{ContentType, Cookie, CookieJar, SameSite, Status},
+    response::content::Html,
     Route, State,
 };
-use rocket_contrib::templates::{tera::Context, Template};
-
-use std::{
-    fs::{copy, File},
-    path::PathBuf,
+use rocket_dyn_templates::{
+    Template,
+    tera::Context,
 };
+use std::fs::File;
 
 use crate::{
     config::Config,
@@ -50,7 +45,7 @@ pub fn get_routes() -> Vec<Route> {
 #[get("/", rank = 3)]
 fn index_login() -> Html<Template> {
     let context = Context::new();
-    Html(Template::render("login", context))
+    Html(Template::render("login", context.into_json()))
 }
 
 #[derive(FromForm)]
@@ -62,8 +57,8 @@ struct LoginCreds {
 #[post("/login.html", data = "<credentials>")]
 fn login(
     credentials: Form<LoginCreds>,
-    mut cookies: Cookies,
-    db: State<Database>,
+    cookies: &CookieJar<'_>,
+    db: &State<Database>,
 ) -> Result<Html<Template>, Status> {
     // Try to get the user id:
     let user_id = match db.get_userid_by_name(&credentials.username) {
@@ -72,7 +67,7 @@ fn login(
             // Answer 'username does not exist':
             let mut context = Context::new();
             context.insert("WARNING", &"The given username does not exist.");
-            return Ok(Html(Template::render("login", context)));
+            return Ok(Html(Template::render("login", context.into_json())));
         }
         Err(_) => {
             // Send server error:
@@ -139,15 +134,15 @@ fn login(
         // Wrong password:
         let mut context = Context::new();
         context.insert("WARNING", &"The password was wrong.");
-        Ok(Html(Template::render("login", context)))
+        Ok(Html(Template::render("login", context.into_json())))
     }
 }
 
 #[get("/logout.html", rank = 2)]
 fn logout(
     session: UserSession,
-    mut cookies: Cookies,
-    db: State<Database>,
+    cookies: &CookieJar<'_>,
+    db: &State<Database>,
 ) -> Result<Html<Template>, Status> {
     // Try to remove the user session from the DB:
     if let Err(e) = db.remove_user_session(session.session_id) {
@@ -161,19 +156,19 @@ fn logout(
 
     // Send login page:
     let context = Context::new();
-    Ok(Html(Template::render("login", context)))
+    Ok(Html(Template::render("login", context.into_json())))
 }
 
 #[get("/logout.html", rank = 3)]
 fn logout_no_session() -> Result<Html<Template>, Status> {
     // Send login page:
     let context = Context::new();
-    Ok(Html(Template::render("login", context)))
+    Ok(Html(Template::render("login", context.into_json())))
 }
 
 // Show own and shared directories:
 #[get("/", rank = 2)]
-fn index(db: State<Database>, session: UserSession) -> Result<Html<Template>, Status> {
+fn index(db: &State<Database>, session: UserSession) -> Result<Html<Template>, Status> {
     let user = match db.get_user(session.user_id) {
         Ok(opt) => opt.unwrap(),
         Err(e) => {
@@ -203,7 +198,7 @@ fn index(db: State<Database>, session: UserSession) -> Result<Html<Template>, St
 fn dir_view(
     dir_id: Id,
     session: UserSession,
-    db: State<Database>,
+    db: &State<Database>,
 ) -> Result<Html<Template>, Status> {
     // Check if user is allowed to see that directory:
     let dir = match db.get_dir(dir_id.inner()) {
@@ -242,44 +237,15 @@ fn dir_view(
     })
 }
 
-struct UploadFile {
-    location: PathBuf,
-}
-impl FromDataSimple for UploadFile {
-    type Error = Error;
-
-    fn from_data(_: &Request<'_>, data: Data) -> Outcome<Self, Self::Error> {
-        // Get path for temp-file:
-        let mut temp_path = std::env::temp_dir();
-        let mut rng = thread_rng();
-        let random_part = rng.next_u64();
-        temp_path.push(format!("kasten_upload_{:x}", random_part));
-
-        if let Err(e) = data.stream_to_file(&temp_path) {
-            return Outcome::Failure((Status::InternalServerError, Error::from(e)));
-        }
-
-        Outcome::Success(UploadFile {
-            location: temp_path,
-        })
-    }
-}
-
 #[post("/mkdir/<parent_id>/<dir_name>")]
 fn mkdir(
     parent_id: Id,
-    dir_name: &RawStr,
+    dir_name: &str,
     session: UserSession,
-    db: State<Database>,
-) -> Result<Content<String>, Status> {
+    db: &State<Database>,
+) -> Result<(ContentType, String), Status> {
     // Insert new file to DB:
-    let name = match dir_name.url_decode() {
-        Ok(s) => s,
-        Err(_) => {
-            return Err(Status::BadRequest);
-        }
-    };
-    let new_dir = match db.insert_new_dir(parent_id.inner(), session.user_id, name.as_str()) {
+    let new_dir = match db.insert_new_dir(parent_id.inner(), session.user_id, dir_name) {
         Ok(v) => v,
         Err(_) => {
             return Err(Status::InternalServerError);
@@ -294,26 +260,20 @@ fn mkdir(
         }
     };
 
-    Ok(Content(ContentType::JSON, res))
+    Ok((ContentType::JSON, res))
 }
 
 #[post("/upload/<parent_id>/<upload_name>", data = "<tmp_file>")]
-fn upload_file(
+async fn upload_file(
     parent_id: Id,
-    upload_name: &RawStr,
+    upload_name: &str,
     session: UserSession,
-    db: State<Database>,
-    config: State<Config>,
-    tmp_file: UploadFile,
-) -> Result<Content<String>, Status> {
+    db: &State<Database>,
+    config: &State<Config>,
+    mut tmp_file: TempFile<'_>,
+) -> Result<(ContentType, String), Status> {
     // Insert new file to DB:
-    let name = match upload_name.url_decode() {
-        Ok(s) => s,
-        Err(_) => {
-            return Err(Status::BadRequest);
-        }
-    };
-    let new_file = match db.insert_new_file(parent_id.inner(), session.user_id, name.as_str()) {
+    let new_file = match db.insert_new_file(parent_id.inner(), session.user_id, upload_name) {
         Ok(v) => v,
         Err(_) => {
             return Err(Status::InternalServerError);
@@ -323,7 +283,7 @@ fn upload_file(
     // Copy temporary file to new location:
     let mut new_path = config.file_location.clone();
     new_path.push(format!("{:x}", new_file.id));
-    if let Err(_) = copy(tmp_file.location, new_path) {
+    if let Err(_) = tmp_file.persist_to(new_path).await {
         // TODO: Logging and remove from DB
         return Err(Status::InternalServerError);
     }
@@ -336,16 +296,16 @@ fn upload_file(
         }
     };
 
-    Ok(Content(ContentType::JSON, res))
+    Ok((ContentType::JSON, res))
 }
 
 #[get("/files/<file_id>")]
 fn download_file(
     file_id: Id,
     session: UserSession,
-    db: State<Database>,
-    config: State<Config>,
-) -> Result<Stream<File>, Status> {
+    db: &State<Database>,
+    config: &State<Config>,
+) -> Result<File, Status> {
     let file_id = file_id.inner();
 
     // Check, if the user is allowed to access the file:
@@ -369,7 +329,7 @@ fn download_file(
     let mut file_path = config.file_location.clone();
     file_path.push(format!("{:x}", file_id));
     match File::open(file_path) {
-        Ok(file) => Ok(Stream::chunked(file, 16384)),
+        Ok(file) => Ok(file),
         Err(e) => {
             // TODO: Logging
             println!("Error on GET /files/...: {}", e);
@@ -382,8 +342,8 @@ fn download_file(
 fn remove_dir(
     dir_id: Id,
     session: UserSession,
-    db: State<Database>,
-) -> Result<Content<String>, Status> {
+    db: &State<Database>,
+) -> Result<(ContentType, String), Status> {
     // Check, if the user is allowed to access the directory:
     let dir = match dbg!(db.get_dir(dir_id.inner())) {
         Ok(Some(d)) => d,
@@ -413,7 +373,7 @@ fn remove_dir(
                 }
             };
 
-            Ok(Content(ContentType::JSON, res))
+            Ok((ContentType::JSON, res))
         }
         Err(Error::NoSuchDir) => {
             Err(Status::NotFound)
@@ -430,9 +390,9 @@ fn remove_dir(
 fn remove_file(
     file_id: Id,
     session: UserSession,
-    db: State<Database>,
-    config: State<Config>,
-) -> Result<Content<String>, Status> {
+    db: &State<Database>,
+    config: &State<Config>,
+) -> Result<(ContentType, String), Status> {
     // Check, if the user is allowed to access the file:
     let file = match db.get_file(file_id.inner()) {
         Ok(Some(d)) => d,
@@ -482,5 +442,5 @@ fn remove_file(
     }
 
 
-    Ok(Content(ContentType::JSON, res))
+    Ok((ContentType::JSON, res))
 }

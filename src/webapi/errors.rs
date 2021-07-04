@@ -4,8 +4,10 @@ use rocket::{
     response::{content::Html, status},
     Catcher,
 };
-use rocket_contrib::templates::Template;
-use tera::Context;
+use rocket_dyn_templates::{
+    Template,
+    tera::Context,
+};
 
 pub fn error_catchers() -> Vec<Catcher> {
     catchers![internal_server_error]

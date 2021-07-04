@@ -1,5 +1,8 @@
 use chrono::{offset::Utc, DateTime, Duration};
-use rocket::request::{FromRequest, Outcome, Request, State};
+use rocket::{
+    State,
+    request::{FromRequest, Outcome, Request},
+};
 use serde::Serialize;
 
 use crate::database::Database;
@@ -36,17 +39,18 @@ impl UserSession {
     }
 }
 
-impl<'a, 'r> FromRequest<'a, 'r> for UserSession {
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for UserSession {
     type Error = crate::Error;
 
-    fn from_request(req: &'a Request<'r>) -> Outcome<Self, Self::Error> {
+    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
         let cookies = req.cookies();
         let session_cookie = if let Some(c) = cookies.get("session_id") {
             c.value()
         } else {
             return Outcome::Forward(());
         };
-        let db = req.guard::<State<Database>>().unwrap();
+        let db = req.guard::<&State<Database>>().await.unwrap();
 
         let session_id = if let Ok(id) = u64::from_str_radix(session_cookie, 16) {
             id
