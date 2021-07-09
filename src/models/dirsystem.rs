@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use std::convert::TryInto;
 
@@ -11,7 +11,8 @@ pub trait FsNode {
     fn owner_id(&self) -> u64;
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub struct File {
     pub id: u64,
     pub parent_id: u64,
@@ -37,7 +38,19 @@ impl FsNode for File {
     }
 }
 
-#[derive(Debug, Serialize)]
+impl Default for File {
+    fn default() -> Self {
+        File {
+            id: 0,
+            parent_id: 0,
+            owner_id: 0,
+            name: String::from("[new_file]")
+        }
+    }
+}
+
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Dir {
     pub id: u64,
     pub parent_id: u64,

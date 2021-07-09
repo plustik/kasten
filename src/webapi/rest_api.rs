@@ -1,15 +1,16 @@
 use rocket::{
     http::{ContentType, Status},
+    serde::json::Json,
     Route, State,
 };
 
 use crate::{
     database::Database,
-    models::{Id, UserSession},
+    models::{File, Id, UserSession},
 };
 
 pub fn get_routes() -> Vec<Route> {
-    routes![get_file_info,]
+    routes![get_file_info, get_dir_info, add_file,]
 }
 
 #[get("/files/<file_id>")]
@@ -39,6 +40,81 @@ async fn get_file_info(
 
     // Responde with file as JSON:
     let res = match serde_json::to_string(&file) {
+        Ok(v) => v,
+        Err(_) => {
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    Ok((ContentType::JSON, res))
+}
+
+#[get("/dirs/<dir_id>")]
+async fn get_dir_info(
+    dir_id: Id,
+    session: Option<UserSession>,
+    db: &State<Database>,
+) -> Result<(ContentType, String), Status> {
+    let dir_id = dir_id.inner();
+
+    // Check, if the user is allowed to access the directory:
+    let dir = match db.get_dir(dir_id) {
+        Ok(Some(d)) => d,
+        Ok(None) => {
+            return Err(Status::NotFound);
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!("Error on GET /rest_api/dir/...: {}", e);
+            return Err(Status::InternalServerError);
+        }
+    };
+    if session.is_some() && dir.owner_id != session.unwrap().user_id {
+        // TODO: Match against existing rules
+        return Err(Status::Unauthorized);
+    }
+
+    // Responde with directory as JSON:
+    let res = match serde_json::to_string(&dir) {
+        Ok(v) => v,
+        Err(_) => {
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    Ok((ContentType::JSON, res))
+}
+
+#[post("/files", data = "<file_info>")]
+async fn add_file(
+    file_info: Json<File>,
+    session: UserSession,
+    db: &State<Database>,
+) -> Result<(ContentType, String), Status> {
+    let new_file = file_info.into_inner();
+    // Check, if the user has the necessary rights:
+    let parent_dir = db
+        .get_dir(new_file.parent_id)
+        .map_err(|err| {
+            // TODO: Logging
+            println!("{}", err);
+            Status::InternalServerError
+        })?
+        .ok_or(Status::InternalServerError)?;
+
+    if parent_dir.owner_id != session.user_id {
+        return Err(Status::Forbidden);
+    }
+
+    // Add new file:
+    let res_file = db.insert_new_file(new_file.parent_id, new_file.owner_id, &new_file.name).map_err(|err| {
+        // TODO: Logging
+        println!("{}", err);
+        Status::InternalServerError
+    })?;
+
+    // Responde with new file as JSON:
+    let res = match serde_json::to_string(&res_file) {
         Ok(v) => v,
         Err(_) => {
             return Err(Status::InternalServerError);
