@@ -44,13 +44,13 @@ impl Default for File {
             id: 0,
             parent_id: 0,
             owner_id: 0,
-            name: String::from("[new_file]")
+            name: String::from("[new_file]"),
         }
     }
 }
 
-
 #[derive(Debug, Deserialize, Serialize)]
+#[serde(default)]
 pub struct Dir {
     pub id: u64,
     pub parent_id: u64,
@@ -84,6 +84,18 @@ impl Dir {
     }
 }
 
+impl Default for Dir {
+    fn default() -> Self {
+        Dir {
+            id: 0,
+            parent_id: 0,
+            owner_id: 0,
+            child_ids: Vec::new(),
+            name: String::from("[new_dir]"),
+        }
+    }
+}
+
 impl FsNode for Dir {
     fn id(&self) -> u64 {
         self.id
@@ -102,72 +114,33 @@ impl FsNode for Dir {
     }
 }
 
-trait Rule {
-    fn node_id(&self) -> u64;
-    fn is_visible(&self) -> bool;
-    fn may_read(&self) -> bool;
-    fn may_write(&self) -> bool;
-    fn pwd_hash(&self) -> Option<u64>;
+pub struct DirBuilder {
+    dir: Dir,
 }
 
-struct UserRule {
-    user_id: u64,
-    node_id: u64,
-    is_visible: bool,
-    may_read: bool,
-    may_write: bool,
-    pwd_hash: Option<u64>,
-}
-
-impl Rule for UserRule {
-    fn node_id(&self) -> u64 {
-        self.node_id
+impl DirBuilder {
+    pub fn new() -> Self {
+        DirBuilder {
+            dir: Dir::default(),
+        }
     }
 
-    fn is_visible(&self) -> bool {
-        self.is_visible
+    pub fn build(self) -> Dir {
+        self.dir
     }
 
-    fn may_read(&self) -> bool {
-        self.may_read
+    pub fn set_parent_id(mut self, parent_id: u64) -> Self {
+        self.dir.parent_id = parent_id;
+        self
     }
 
-    fn may_write(&self) -> bool {
-        self.may_write
+    pub fn set_owner_id(mut self, owner_id: u64) -> Self {
+        self.dir.owner_id = owner_id;
+        self
     }
 
-    fn pwd_hash(&self) -> Option<u64> {
-        self.pwd_hash
-    }
-}
-
-struct GroupRule {
-    group_id: u64,
-    node_id: u64,
-    is_visible: bool,
-    may_read: bool,
-    may_write: bool,
-    pwd_hash: Option<u64>,
-}
-
-impl Rule for GroupRule {
-    fn node_id(&self) -> u64 {
-        self.node_id
-    }
-
-    fn is_visible(&self) -> bool {
-        self.is_visible
-    }
-
-    fn may_read(&self) -> bool {
-        self.may_read
-    }
-
-    fn may_write(&self) -> bool {
-        self.may_write
-    }
-
-    fn pwd_hash(&self) -> Option<u64> {
-        self.pwd_hash
+    pub fn set_name<T: Into<String>>(mut self, name: T) -> Self {
+        self.dir.name = name.into();
+        self
     }
 }

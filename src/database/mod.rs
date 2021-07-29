@@ -225,16 +225,45 @@ impl Database {
         self.fs_db.insert_new_file(parent_id, owner_id, name)
     }
 
+    /**
+     * Changes the properties of the given File in the DB to the values given by the parameter
+     * `file`.
+     *
+     * Changeable properties include `name`, `owner_id` and `parent_id`. The field `id` is used to
+     * identify the file to change.
+     */
+    pub fn update_file(&self, file: &File) -> Result<(), Error> {
+        self.fs_db.update_file(file)
+    }
+
     /// Removes the file with the given id from the DB and returns its representation. Returns an
     /// Error with type NoSuchFile, if there is no file with the given id in the DB.
     pub fn remove_file(&self, id: u64) -> Result<File, Error> {
         self.fs_db.remove_file(id)
     }
 
-    /// Inserts a new dir with the given attributes in the DB.
-    /// If no errors occour, a representation of the new dir is returned.
-    pub fn insert_new_dir(&self, parent_id: u64, owner_id: u64, name: &str) -> Result<Dir, Error> {
-        self.fs_db.insert_new_dir(parent_id, owner_id, name)
+    /*
+     * Inserts the given Dir into the DB.
+     * The function finds a new id for the Dir and updates the id field accordingly.
+     * Ids in the child_ids Vec will be ignored and not written to the DB.
+     */
+    pub fn insert_new_dir(&self, dir: &mut Dir) -> Result<(), Error> {
+        dir.id = self
+            .fs_db
+            .insert_new_dir(dir.parent_id, dir.owner_id, dir.name.as_str())?
+            .id;
+        Ok(())
+    }
+
+    /**
+     * Changes the properties of the given Dir in the DB to the values given by the parameter
+     * `dir`.
+     *
+     * Changeable properties include `name`, `owner_id` and `parent_id`. The field `id` is used to
+     * identify the directory to change. The field `child_ids` will be ignored.
+     */
+    pub fn update_dir(&self, dir: &Dir) -> Result<(), Error> {
+        self.fs_db.update_dir(dir)
     }
 
     /// Removes the directory with the given id from the DB and returns its representation.

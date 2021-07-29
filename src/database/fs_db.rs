@@ -176,6 +176,40 @@ impl FsDatabase {
         })
     }
 
+    /**
+     * Changes the properties of the given File in the DB to the values given by the parameter
+     * `file`.
+     *
+     * Changeable properties include `name`, `owner_id` and `parent_id`. The field `id` is used to
+     * identify the file to change.
+     */
+    pub fn update_file(&self, new_file: &File) -> Result<(), Error> {
+        self.file_tree.transaction(|file_tt| {
+            // Get current version of the file:
+            let old_bytes = match file_tt.get(new_file.id.to_be_bytes())? {
+                Some(b) => b,
+                None => {
+                    return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
+                }
+            };
+
+            let mut new_bytes = Vec::with_capacity(old_bytes.len());
+            // Add parent_id:
+            new_bytes.extend_from_slice(&new_file.parent_id.to_be_bytes());
+            // Add owner_id:
+            new_bytes.extend_from_slice(&new_file.owner_id.to_be_bytes());
+            // Add name:
+            new_bytes.extend_from_slice(new_file.name.as_bytes());
+
+            // Insert new File:
+            file_tt.insert(&new_file.id.to_be_bytes(), new_bytes)?;
+
+            Ok(())
+        })?;
+
+        Ok(())
+    }
+
     /// Removes the file with the given id from the DB and returns its representation. Returns an
     /// Error with type NoSuchFile, if there is no file with the given id in the DB.
     pub fn remove_file(&self, id: u64) -> Result<File, Error> {
@@ -293,6 +327,46 @@ impl FsDatabase {
             child_ids: Vec::new(),
             name: String::from(name),
         })
+    }
+
+    /**
+     * Changes the properties of the given Dir in the DB to the values given by the parameter
+     * `dir`.
+     *
+     * Changeable properties include `name`, `owner_id` and `parent_id`. The field `id` is used to
+     * identify the directory to change.     *
+     */
+    pub fn update_dir(&self, new_dir: &Dir) -> Result<(), Error> {
+        self.dir_tree.transaction(|dir_tt| {
+            // Get current version of the dir:
+            let old_bytes = match dir_tt.get(new_dir.id.to_be_bytes())? {
+                Some(b) => b,
+                None => {
+                    return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
+                }
+            };
+
+            let mut new_bytes = Vec::with_capacity(old_bytes.len());
+            // Add parent_id:
+            new_bytes.extend_from_slice(&new_dir.parent_id.to_be_bytes());
+            // Add owner_id:
+            new_bytes.extend_from_slice(&new_dir.owner_id.to_be_bytes());
+            // Add childs:
+            let end_of_childs: usize = (18
+                + 8 * (u16::from_be_bytes(old_bytes[16..18].try_into().unwrap())))
+            .try_into()
+            .unwrap();
+            new_bytes.extend_from_slice(&old_bytes[16..end_of_childs]);
+            // Add name:
+            new_bytes.extend_from_slice(new_dir.name.as_bytes());
+
+            // Insert new Dir:
+            dir_tt.insert(&new_dir.id.to_be_bytes(), new_bytes)?;
+
+            Ok(())
+        })?;
+
+        Ok(())
     }
 
     /// Removes the directory with the given id from the DB and returns its representation.

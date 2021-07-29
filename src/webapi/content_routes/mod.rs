@@ -16,7 +16,7 @@ use std::fs::File;
 use crate::{
     config::Config,
     database::Database,
-    models::{Id, UserSession},
+    models::{DirBuilder, Id, UserSession},
     Error,
 };
 
@@ -239,12 +239,14 @@ fn mkdir(
     session: UserSession,
     db: &State<Database>,
 ) -> Result<(ContentType, String), Status> {
-    // Insert new file to DB:
-    let new_dir = match db.insert_new_dir(parent_id.inner(), session.user_id, dir_name) {
-        Ok(v) => v,
-        Err(_) => {
-            return Err(Status::InternalServerError);
-        }
+    // Insert new dir to DB:
+    let mut new_dir = DirBuilder::new()
+        .set_parent_id(parent_id.inner())
+        .set_owner_id(session.user_id)
+        .set_name(dir_name)
+        .build();
+    if let Err(_) = db.insert_new_dir(&mut new_dir) {
+        return Err(Status::InternalServerError);
     };
 
     let res = match serde_json::to_string(&new_dir) {
