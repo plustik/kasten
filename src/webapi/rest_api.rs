@@ -1,6 +1,6 @@
 use rocket::{
     fs::TempFile,
-    http::{ContentType, Status},
+    http::Status,
     serde::json::Json,
     Route, State,
 };
@@ -35,7 +35,7 @@ async fn get_dir_info(
     dir_id: Id,
     session: Option<UserSession>,
     db: &State<Database>,
-) -> Result<(ContentType, String), Status> {
+) -> Result<Json<Dir>, Status> {
     let dir_id = dir_id.inner();
 
     // Check, if the user is allowed to access the directory:
@@ -55,15 +55,7 @@ async fn get_dir_info(
         return Err(Status::Unauthorized);
     }
 
-    // Responde with directory as JSON:
-    let res = match serde_json::to_string(&dir) {
-        Ok(v) => v,
-        Err(_) => {
-            return Err(Status::InternalServerError);
-        }
-    };
-
-    Ok((ContentType::JSON, res))
+    Ok(Json(dir))
 }
 
 /*
@@ -81,7 +73,7 @@ async fn add_dir(
     dir_info: Json<Dir>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<(ContentType, String), Status> {
+) -> Result<Json<Dir>, Status> {
     let mut new_dir = dir_info.into_inner();
     // Make sure, that the Dir does not have any childs:
     if !new_dir.child_ids.is_empty() {
@@ -119,15 +111,7 @@ async fn add_dir(
         return Err(Status::InternalServerError);
     }
 
-    let res = match serde_json::to_string(&new_dir) {
-        Ok(v) => v,
-        Err(_) => {
-            // TODO: Logging and remove from DB
-            return Err(Status::InternalServerError);
-        }
-    };
-
-    Ok((ContentType::JSON, res))
+    Ok(Json(new_dir))
 }
 
 /*
@@ -146,7 +130,7 @@ async fn update_dir_infos(
     dir_infos: Json<Dir>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<(ContentType, String), Status> {
+) -> Result<Json<Dir>, Status> {
     let dir_id = dir_id.inner();
 
     // Make sure there aren't two different ids:
@@ -206,16 +190,7 @@ async fn update_dir_infos(
         return Err(Status::NotFound); // Maybe Status::NotFound would be more secure?
     }
 
-    // Respond with new Dir:
-    let res = match serde_json::to_string(&dir) {
-        Ok(v) => v,
-        Err(_) => {
-            // TODO: Logging and remove from DB
-            return Err(Status::InternalServerError);
-        }
-    };
-
-    Ok((ContentType::JSON, res))
+    Ok(Json(dir))
 }
 
 /*
@@ -230,7 +205,7 @@ async fn get_file_info(
     file_id: Id,
     session: Option<UserSession>,
     db: &State<Database>,
-) -> Result<(ContentType, String), Status> {
+) -> Result<Json<File>, Status> {
     let file_id = file_id.inner();
 
     // Check, if the user is allowed to access the file:
@@ -251,14 +226,7 @@ async fn get_file_info(
     }
 
     // Responde with file as JSON:
-    let res = match serde_json::to_string(&file) {
-        Ok(v) => v,
-        Err(_) => {
-            return Err(Status::InternalServerError);
-        }
-    };
-
-    Ok((ContentType::JSON, res))
+    Ok(Json(file))
 }
 
 /*
@@ -276,7 +244,7 @@ async fn add_file(
     file_info: Json<File>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<(ContentType, String), Status> {
+) -> Result<Json<File>, Status> {
     let new_file = file_info.into_inner();
     // Check, if the user has the necessary rights:
     let parent_dir = db
@@ -302,14 +270,7 @@ async fn add_file(
         })?;
 
     // Responde with new file as JSON:
-    let res = match serde_json::to_string(&res_file) {
-        Ok(v) => v,
-        Err(_) => {
-            return Err(Status::InternalServerError);
-        }
-    };
-
-    Ok((ContentType::JSON, res))
+    Ok(Json(res_file))
 }
 
 /*
@@ -324,7 +285,7 @@ async fn update_file_infos(
     file_infos: Json<File>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<(ContentType, String), Status> {
+) -> Result<Json<File>, Status> {
     let file_id = file_id.inner();
 
     let mut file_info = file_infos.into_inner();
@@ -383,15 +344,7 @@ async fn update_file_infos(
     }
 
     // Respond with new File:
-    let res = match serde_json::to_string(&file) {
-        Ok(v) => v,
-        Err(_) => {
-            // TODO: Logging and remove from DB
-            return Err(Status::InternalServerError);
-        }
-    };
-
-    Ok((ContentType::JSON, res))
+    Ok(Json(file))
 }
 
 /*
@@ -407,7 +360,7 @@ async fn upload_file(
     session: UserSession,
     db: &State<Database>,
     config: &State<Config>,
-) -> Result<(ContentType, String), Status> {
+) -> Result<Json<File>, Status> {
     let file = match db.get_file(file_id.inner()) {
         Ok(Some(f)) => f,
         Ok(None) => {
@@ -439,13 +392,5 @@ async fn upload_file(
     }
 
     // Send file information as respose:
-    let res = match serde_json::to_string(&file) {
-        Ok(v) => v,
-        Err(_) => {
-            // TODO: Logging and remove from DB
-            return Err(Status::InternalServerError);
-        }
-    };
-
-    Ok((ContentType::JSON, res))
+    Ok(Json(file))
 }

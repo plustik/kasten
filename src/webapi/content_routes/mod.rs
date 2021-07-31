@@ -6,17 +6,17 @@ use chrono::{offset::Utc, Duration};
 use rocket::{
     form::{Form, FromForm},
     fs::TempFile,
-    http::{ContentType, Cookie, CookieJar, SameSite, Status},
+    http::{Cookie, CookieJar, SameSite, Status},
     response::content::Html,
     Route, State,
+    serde::json::Json,
 };
 use rocket_dyn_templates::{tera::Context, Template};
-use std::fs::File;
 
 use crate::{
     config::Config,
     database::Database,
-    models::{DirBuilder, Id, UserSession},
+    models::{Dir, DirBuilder, File, Id, UserSession},
     Error,
 };
 
@@ -238,26 +238,20 @@ fn mkdir(
     dir_name: &str,
     session: UserSession,
     db: &State<Database>,
-) -> Result<(ContentType, String), Status> {
+) -> Result<Json<Dir>, Status> {
     // Insert new dir to DB:
     let mut new_dir = DirBuilder::new()
         .set_parent_id(parent_id.inner())
         .set_owner_id(session.user_id)
         .set_name(dir_name)
         .build();
+    // TODO: Check the users rights
     if let Err(_) = db.insert_new_dir(&mut new_dir) {
         return Err(Status::InternalServerError);
     };
+    // TODO: Change patent dir?
 
-    let res = match serde_json::to_string(&new_dir) {
-        Ok(v) => v,
-        Err(_) => {
-            // TODO: Logging and remove from DB
-            return Err(Status::InternalServerError);
-        }
-    };
-
-    Ok((ContentType::JSON, res))
+    Ok(Json(new_dir))
 }
 
 #[post("/upload/<parent_id>/<upload_name>", data = "<tmp_file>")]
@@ -268,7 +262,7 @@ async fn upload_file(
     db: &State<Database>,
     config: &State<Config>,
     mut tmp_file: TempFile<'_>,
-) -> Result<(ContentType, String), Status> {
+) -> Result<Json<File>, Status> {
     // Insert new file to DB:
     let new_file = match db.insert_new_file(parent_id.inner(), session.user_id, upload_name) {
         Ok(v) => v,
@@ -285,15 +279,7 @@ async fn upload_file(
         return Err(Status::InternalServerError);
     }
 
-    let res = match serde_json::to_string(&new_file) {
-        Ok(v) => v,
-        Err(_) => {
-            // TODO: Logging and remove from DB
-            return Err(Status::InternalServerError);
-        }
-    };
-
-    Ok((ContentType::JSON, res))
+    Ok(Json(new_file))
 }
 
 #[get("/files/<file_id>")]
@@ -302,7 +288,7 @@ fn download_file(
     session: UserSession,
     db: &State<Database>,
     config: &State<Config>,
-) -> Result<File, Status> {
+) -> Result<std::fs::File, Status> {
     let file_id = file_id.inner();
 
     // Check, if the user is allowed to access the file:
@@ -325,7 +311,7 @@ fn download_file(
     // Respond with streamed file:
     let mut file_path = config.file_location.clone();
     file_path.push(format!("{:x}", file_id));
-    match File::open(file_path) {
+    match std::fs::File::open(file_path) {
         Ok(file) => Ok(file),
         Err(e) => {
             // TODO: Logging
@@ -340,7 +326,7 @@ fn remove_dir(
     dir_id: Id,
     session: UserSession,
     db: &State<Database>,
-) -> Result<(ContentType, String), Status> {
+) -> Result<Json<Dir>, Status> {
     // Check, if the user is allowed to access the directory:
     let dir = match dbg!(db.get_dir(dir_id.inner())) {
         Ok(Some(d)) => d,
@@ -362,15 +348,7 @@ fn remove_dir(
     match dbg!(db.remove_dir(dir_id.inner())) {
         Ok(dir) => {
             // Send directory as response:
-            let res = match serde_json::to_string(&dir) {
-                Ok(v) => v,
-                Err(_) => {
-                    // TODO: Logging and remove from DB
-                    return Err(Status::InternalServerError);
-                }
-            };
-
-            Ok((ContentType::JSON, res))
+            Ok(Json(dir))
         }
         Err(Error::NoSuchDir) => Err(Status::NotFound),
         Err(e) => {
@@ -387,7 +365,7 @@ fn remove_file(
     session: UserSession,
     db: &State<Database>,
     config: &State<Config>,
-) -> Result<(ContentType, String), Status> {
+) -> Result<Json<File>, Status> {
     // Check, if the user is allowed to access the file:
     let file = match db.get_file(file_id.inner()) {
         Ok(Some(d)) => d,
@@ -407,16 +385,7 @@ fn remove_file(
 
     // Remove file from DB:
     let res = match db.remove_file(file_id.inner()) {
-        Ok(file) => {
-            // Create JSON of directory:
-            match serde_json::to_string(&file) {
-                Ok(v) => v,
-                Err(_) => {
-                    // TODO: Logging and remove from DB
-                    return Err(Status::InternalServerError);
-                }
-            }
-        }
+        Ok(file) => file,
         Err(Error::NoSuchDir) => {
             return Err(Status::NotFound);
         }
@@ -436,5 +405,5 @@ fn remove_file(
         return Err(Status::InternalServerError);
     }
 
-    Ok((ContentType::JSON, res))
+    Ok(Json(res))
 }
