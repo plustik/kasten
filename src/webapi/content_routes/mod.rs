@@ -8,15 +8,15 @@ use rocket::{
     fs::TempFile,
     http::{Cookie, CookieJar, SameSite, Status},
     response::content::Html,
-    Route, State,
     serde::json::Json,
+    Route, State,
 };
 use rocket_dyn_templates::{tera::Context, Template};
 
 use crate::{
     config::Config,
     database::Database,
-    models::{Dir, DirBuilder, File, Id, UserSession},
+    models::{Dir, DirBuilder, File, FileBuilder, Id, UserSession},
     Error,
 };
 
@@ -241,15 +241,14 @@ fn mkdir(
 ) -> Result<Json<Dir>, Status> {
     // Insert new dir to DB:
     let mut new_dir = DirBuilder::new()
-        .set_parent_id(parent_id.inner())
-        .set_owner_id(session.user_id)
-        .set_name(dir_name)
+        .with_parent_id(parent_id.inner())
+        .with_owner_id(session.user_id)
+        .with_name(dir_name)
         .build();
     // TODO: Check the users rights
     if let Err(_) = db.insert_new_dir(&mut new_dir) {
         return Err(Status::InternalServerError);
     };
-    // TODO: Change patent dir?
 
     Ok(Json(new_dir))
 }
@@ -264,11 +263,14 @@ async fn upload_file(
     mut tmp_file: TempFile<'_>,
 ) -> Result<Json<File>, Status> {
     // Insert new file to DB:
-    let new_file = match db.insert_new_file(parent_id.inner(), session.user_id, upload_name) {
-        Ok(v) => v,
-        Err(_) => {
-            return Err(Status::InternalServerError);
-        }
+    let mut new_file = FileBuilder::new()
+        .with_parent_id(parent_id.inner())
+        .with_owner_id(session.user_id)
+        .with_name(upload_name)
+        .build();
+    // TODO: Check the users rights
+    if let Err(_) = db.insert_new_file(&mut new_file) {
+        return Err(Status::InternalServerError);
     };
 
     // Copy temporary file to new location:
@@ -322,11 +324,7 @@ fn download_file(
 }
 
 #[delete("/dirs/<dir_id>")]
-fn remove_dir(
-    dir_id: Id,
-    session: UserSession,
-    db: &State<Database>,
-) -> Result<Json<Dir>, Status> {
+fn remove_dir(dir_id: Id, session: UserSession, db: &State<Database>) -> Result<Json<Dir>, Status> {
     // Check, if the user is allowed to access the directory:
     let dir = match dbg!(db.get_dir(dir_id.inner())) {
         Ok(Some(d)) => d,

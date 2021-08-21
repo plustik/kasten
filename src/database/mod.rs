@@ -214,15 +214,17 @@ impl Database {
         self.fs_db.get_dirs_by_parent(parent_id)
     }
 
-    /// Inserts a new file with the given attributes in the DB.
-    /// If no errors occour, a representation of the new file is returned.
-    pub fn insert_new_file(
-        &self,
-        parent_id: u64,
-        owner_id: u64,
-        name: &str,
-    ) -> Result<File, Error> {
-        self.fs_db.insert_new_file(parent_id, owner_id, name)
+    /**
+     * Inserts the given File into the DB.
+     * The function finds a new id for the File and updates the id field accordingly.
+     */
+    pub fn insert_new_file(&self, file: &mut File) -> Result<(), Error> {
+        // TODO: Refactor fs_db.insert_new_file to take a &mut File as argument too.
+        file.id = self
+            .fs_db
+            .insert_new_file(file.parent_id, file.owner_id, file.name.as_str())?
+            .id;
+        Ok(())
     }
 
     /**
@@ -242,12 +244,13 @@ impl Database {
         self.fs_db.remove_file(id)
     }
 
-    /*
+    /**
      * Inserts the given Dir into the DB.
      * The function finds a new id for the Dir and updates the id field accordingly.
      * Ids in the child_ids Vec will be ignored and not written to the DB.
      */
     pub fn insert_new_dir(&self, dir: &mut Dir) -> Result<(), Error> {
+        // TODO: Refactor fs_db.insert_new_dir to take a &mut Dir as argument too.
         dir.id = self
             .fs_db
             .insert_new_dir(dir.parent_id, dir.owner_id, dir.name.as_str())?

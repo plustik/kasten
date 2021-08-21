@@ -1,24 +1,22 @@
-use rocket::{
-    fs::TempFile,
-    http::Status,
-    serde::json::Json,
-    Route, State,
-};
+use rocket::{fs::TempFile, http::Status, serde::json::Json, Route, State};
 
+use super::{DirMsg, FileMsg};
 use crate::{
     config::Config,
+    controller,
     database::Database,
     models::{Dir, File, Id, UserSession},
+    Error,
 };
 
 pub fn get_routes() -> Vec<Route> {
     routes![
-        get_dir_info,
         add_dir,
+        get_dir_info,
         update_dir_infos,
-        get_file_info,
         add_file,
         upload_file,
+        get_file_info,
         update_file_infos
     ]
 }
@@ -38,24 +36,18 @@ async fn get_dir_info(
 ) -> Result<Json<Dir>, Status> {
     let dir_id = dir_id.inner();
 
-    // Check, if the user is allowed to access the directory:
-    let dir = match db.get_dir(dir_id) {
-        Ok(Some(d)) => d,
-        Ok(None) => {
-            return Err(Status::NotFound);
+    match controller::get_dir_info(dir_id, session.as_ref().map(|s| s.user_id), db) {
+        Ok(dir) => Ok(Json(dir)),
+        Err(Error::NoSuchDir) => Err(Status::NotFound),
+        Err(Error::MissingAuthorization) => {
+            if session.is_some() {
+                Err(Status::Forbidden)
+            } else {
+                Err(Status::Unauthorized)
+            }
         }
-        Err(e) => {
-            // TODO: Logging
-            println!("Error on GET /rest_api/dir/...: {}", e);
-            return Err(Status::InternalServerError);
-        }
-    };
-    if session.is_some() && dir.owner_id != session.unwrap().user_id {
-        // TODO: Match against existing rules
-        return Err(Status::Unauthorized);
+        Err(_) => Err(Status::InternalServerError),
     }
-
-    Ok(Json(dir))
 }
 
 /*
@@ -70,48 +62,37 @@ async fn get_dir_info(
  */
 #[post("/dirs", data = "<dir_info>")]
 async fn add_dir(
-    dir_info: Json<Dir>,
+    dir_info: Json<DirMsg>,
     session: UserSession,
     db: &State<Database>,
 ) -> Result<Json<Dir>, Status> {
-    let mut new_dir = dir_info.into_inner();
-    // Make sure, that the Dir does not have any childs:
-    if !new_dir.child_ids.is_empty() {
-        // TODO: Logging
-        println!("Trying to add a directory with childs.");
-        return Err(Status::BadRequest);
-    }
+    let mut dir_msg = dir_info.into_inner();
     // Set the owner_id to the current user:
-    new_dir.owner_id = session.user_id;
-    // Make sure the user has the necessary rights on the parent directory:
-    match db.get_dir(new_dir.parent_id) {
-        Ok(Some(d)) => {
-            if d.owner_id != session.user_id {
-                // TODO: Logging
-                println!("Trying to add a dir without the necessary rights.");
-                return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
-            }
+    dir_msg.owner_id = Some(session.user_id);
+
+    match controller::add_dir(db, dir_msg, session.user_id) {
+        Ok(dir) => Ok(Json(dir)),
+        Err(Error::MissingAuthorization) => {
+            // TODO: Logging
+            println!("Trying to add a dir without the necessary rights.");
+            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
         }
-        Ok(None) => {
+        Err(Error::NoSuchDir) => {
             // TODO: Logging
             println!("Trying to add to a nonexisting dir.");
             return Err(Status::NotFound);
         }
+        Err(Error::BadCall) => {
+            // TODO: Logging
+            println!("Trying to add a dir without parent.");
+            return Err(Status::BadRequest); // Maybe Status::NotFound would be more secure?
+        }
         Err(_) => {
             // TODO: Logging
-            println!("Could not get Dir from DB.");
+            println!("Could not insert Dir to DB.");
             return Err(Status::InternalServerError);
         }
-    };
-
-    // Add Dir to DB:
-    if let Err(_) = db.insert_new_dir(&mut new_dir) {
-        // TODO: Logging
-        println!("Could not insert new Dir into DB.");
-        return Err(Status::InternalServerError);
     }
-
-    Ok(Json(new_dir))
 }
 
 /*
@@ -127,70 +108,45 @@ async fn add_dir(
 #[put("/dirs/<dir_id>", data = "<dir_infos>")]
 async fn update_dir_infos(
     dir_id: Id,
-    dir_infos: Json<Dir>,
+    dir_infos: Json<DirMsg>,
     session: UserSession,
     db: &State<Database>,
 ) -> Result<Json<Dir>, Status> {
     let dir_id = dir_id.inner();
+    let mut dir_info = dir_infos.into_inner();
 
     // Make sure there aren't two different ids:
-    let mut dir_info = dir_infos.into_inner();
-    if dir_info.id == 0 {
-        // 0 is the default
-        dir_info.id = dir_id;
-    } else if dir_info.id != dir_id {
-        // TODO: Logging
-        println!("Two different dir_ids.");
-        return Err(Status::BadRequest);
+    if let Some(id) = dir_info.id {
+        if id != dir_id {
+            // TODO: Logging
+            println!("Two different dir_ids.");
+            return Err(Status::BadRequest);
+        }
+    } else {
+        dir_info.id = Some(dir_id);
     }
 
-    // Get old Dir from DB:
-    let mut dir = match db.get_dir(dir_info.id) {
-        Ok(Some(d)) => d,
-        Ok(None) => {
+    // Performe update:
+    match controller::update_dir_infos(dir_info, session.user_id, &db) {
+        Ok(dir) => Ok(Json(dir)),
+        Err(Error::NoSuchDir) => {
             // TODO: Logging
             println!("Trying to update a nonexisting directory.");
+            // TODO: Different status if the parent dir doesn't exist. (see TODO at
+            // update_dir_infos)
             return Err(Status::NotFound);
         }
-        Err(_) => {
+        Err(Error::MissingAuthorization) => {
             // TODO: Logging
-            println!("Could not get directory.");
-            return Err(Status::NotFound);
+            println!("User tried to update a directory which he doesn't own.");
+            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
         }
-    };
-
-    // Make sure the user has the necessary rights:
-    if dir.owner_id != session.user_id {
-        // TODO: Logging
-        println!("User tried to update a directory which he doesn't own.");
-        return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+        Err(err) => {
+            // TODO: Logging
+            println!("Error when updating directory: {}", err);
+            return Err(Status::InternalServerError);
+        }
     }
-
-    // Set changed fields:
-    if dir_info.parent_id != 0 {
-        // 0 is the default
-        //dir.parent_id = dir_info.parent_id;
-        // TODO: Make sure the parent exists and user has the necessary rights; Change new and old
-        // parent.
-        todo!();
-    }
-    if dir_info.owner_id != 0 {
-        // 0 is the default
-        dir.owner_id = dir_info.owner_id;
-    }
-    if dir_info.name != "[new_dir]" {
-        // "[new_dir]" is the default
-        dir.name = dir_info.name;
-    }
-
-    // Write updated dir to DB:
-    if let Err(_) = db.update_dir(&dir) {
-        // TODO: Logging
-        println!("Could not update directory.");
-        return Err(Status::NotFound); // Maybe Status::NotFound would be more secure?
-    }
-
-    Ok(Json(dir))
 }
 
 /*
@@ -208,25 +164,26 @@ async fn get_file_info(
 ) -> Result<Json<File>, Status> {
     let file_id = file_id.inner();
 
-    // Check, if the user is allowed to access the file:
-    let file = match db.get_file(file_id) {
-        Ok(Some(f)) => f,
-        Ok(None) => {
-            return Err(Status::NotFound);
-        }
-        Err(e) => {
-            // TODO: Logging
-            println!("Error on GET /rest_api/files/...: {}", e);
-            return Err(Status::InternalServerError);
-        }
-    };
-    if session.is_some() && file.owner_id != session.unwrap().user_id {
-        // TODO: Match against existing rules
+    // TODO: Handle public files (session == None)
+    if session.is_none() {
+        // TODO: Logging
+        println!("Error on GET /rest_api/files/...: No user session.");
         return Err(Status::Unauthorized);
     }
 
-    // Responde with file as JSON:
-    Ok(Json(file))
+    match controller::get_file_info(file_id, session.unwrap().user_id, &db) {
+        Ok(file) => Ok(Json(file)),
+        Err(Error::NoSuchFile) => {
+            // TODO: Logging
+            println!("Error on GET /rest_api/files/...: User requested nonexisting dir.");
+            return Err(Status::NotFound);
+        }
+        Err(err) => {
+            // TODO: Logging
+            println!("Error on GET /rest_api/files/...: {}", err);
+            return Err(Status::InternalServerError);
+        }
+    }
 }
 
 /*
@@ -241,36 +198,37 @@ async fn get_file_info(
  */
 #[post("/files", data = "<file_info>")]
 async fn add_file(
-    file_info: Json<File>,
+    file_info: Json<FileMsg>,
     session: UserSession,
     db: &State<Database>,
 ) -> Result<Json<File>, Status> {
-    let new_file = file_info.into_inner();
-    // Check, if the user has the necessary rights:
-    let parent_dir = db
-        .get_dir(new_file.parent_id)
-        .map_err(|err| {
-            // TODO: Logging
-            println!("{}", err);
-            Status::InternalServerError
-        })?
-        .ok_or(Status::InternalServerError)?;
+    let mut file_msg = file_info.into_inner();
+    // Set the owner_id to the current user:
+    file_msg.owner_id = Some(session.user_id);
 
-    if parent_dir.owner_id != session.user_id {
-        return Err(Status::Forbidden);
+    match controller::add_file(db, file_msg, session.user_id) {
+        Ok(file) => Ok(Json(file)),
+        Err(Error::MissingAuthorization) => {
+            // TODO: Logging
+            println!("Trying to add a file without the necessary rights.");
+            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+        }
+        Err(Error::NoSuchDir) => {
+            // TODO: Logging
+            println!("Trying to add to a nonexisting dir.");
+            return Err(Status::NotFound);
+        }
+        Err(Error::BadCall) => {
+            // TODO: Logging
+            println!("Trying to add a dir without parent.");
+            return Err(Status::BadRequest); // Maybe Status::NotFound would be more secure?
+        }
+        Err(_) => {
+            // TODO: Logging
+            println!("Could not insert Dir to DB.");
+            return Err(Status::InternalServerError);
+        }
     }
-
-    // Add new file:
-    let res_file = db
-        .insert_new_file(new_file.parent_id, new_file.owner_id, &new_file.name)
-        .map_err(|err| {
-            // TODO: Logging
-            println!("{}", err);
-            Status::InternalServerError
-        })?;
-
-    // Responde with new file as JSON:
-    Ok(Json(res_file))
 }
 
 /*
@@ -279,72 +237,46 @@ async fn add_file(
  * default values. Fields with default values will not be updated.
  * The given updates will be written to the database.
  */
-#[put("/files/<file_id>", data = "<file_infos>")]
+#[put("/files/<file_id>", data = "<file_info>")]
 async fn update_file_infos(
     file_id: Id,
-    file_infos: Json<File>,
+    file_info: Json<FileMsg>,
     session: UserSession,
     db: &State<Database>,
 ) -> Result<Json<File>, Status> {
     let file_id = file_id.inner();
+    let mut file_info = file_info.into_inner();
 
-    let mut file_info = file_infos.into_inner();
-    if file_info.id == 0 {
-        // 0 is the default
-        file_info.id = file_id;
-    } else if file_info.id != file_id {
-        // TODO: Logging
-        println!("Two different file_ids.");
-        return Err(Status::BadRequest);
+    // Make sure there aren't two different ids:
+    if let Some(id) = file_info.id {
+        if id != file_id {
+            // TODO: Logging
+            println!("Two different file_ids.");
+            return Err(Status::BadRequest);
+        }
+    } else {
+        file_info.id = Some(file_id);
     }
 
-    let mut file = match db.get_file(file_info.id) {
-        Ok(Some(f)) => f,
-        Ok(None) => {
+    // Performe update:
+    match controller::update_file_infos(file_info, session.user_id, &db) {
+        Ok(file) => Ok(Json(file)),
+        Err(Error::NoSuchFile) => {
             // TODO: Logging
             println!("Trying to update a nonexisting file.");
             return Err(Status::NotFound);
         }
-        Err(_) => {
+        Err(Error::MissingAuthorization) => {
             // TODO: Logging
-            println!("Could not get file.");
-            return Err(Status::NotFound);
+            println!("User tried to update a file which he doesn't own.");
+            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
         }
-    };
-
-    // Make sure the user has the necessary rights:
-    if file.owner_id != session.user_id {
-        // TODO: Logging
-        println!("User tried to update a file which he doesn't own.");
-        return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+        Err(err) => {
+            // TODO: Logging
+            println!("Error when updating file: {}", err);
+            return Err(Status::InternalServerError);
+        }
     }
-
-    // Set changed fields:
-    if file_info.parent_id != 0 {
-        // 0 is the default
-        //file.parent_id = file_info.parent_id;
-        // TODO: Make sure the parent exists and user has the necessary rights; Change new and old
-        // parent.
-        todo!();
-    }
-    if file_info.owner_id != 0 {
-        // 0 is the default
-        file.owner_id = file_info.owner_id;
-    }
-    if file_info.name != "[new_file]" {
-        // "[new_file]" is the default
-        file.name = file_info.name;
-    }
-
-    // Write updated file to DB:
-    if let Err(_) = db.update_file(&mut file) {
-        // TODO: Logging
-        println!("Could not update file.");
-        return Err(Status::NotFound); // Maybe Status::NotFound would be more secure?
-    }
-
-    // Respond with new File:
-    Ok(Json(file))
 }
 
 /*
@@ -356,41 +288,35 @@ async fn update_file_infos(
 #[put("/files/<file_id>/data", data = "<file_content>")]
 async fn upload_file(
     file_id: Id,
-    mut file_content: TempFile<'_>,
+    file_content: TempFile<'_>,
     session: UserSession,
     db: &State<Database>,
     config: &State<Config>,
 ) -> Result<Json<File>, Status> {
-    let file = match db.get_file(file_id.inner()) {
-        Ok(Some(f)) => f,
-        Ok(None) => {
+    match controller::update_file_content(
+        file_id.inner(),
+        session.user_id,
+        db,
+        config,
+        file_content,
+    )
+    .await
+    {
+        Ok(file) => Ok(Json(file)),
+        Err(Error::NoSuchFile) => {
             // TODO: Logging
-            println!("User tried to change content of nonexisting file.");
-            return Err(Status::NotFound);
+            println!("User tried to update content of nonexisting file.");
+            Err(Status::NotFound)
         }
-        Err(_) => {
+        Err(Error::MissingAuthorization) => {
             // TODO: Logging
-            println!("Could not read file from DB.");
-            return Err(Status::InternalServerError);
+            println!("User tried to update content of a file he doesn't own.");
+            Err(Status::Forbidden) // Maybe NotFound would be more secure
         }
-    };
-
-    // Check users permissions:
-    if file.owner_id != session.user_id {
-        // TODO: Logging
-        println!("User tried to change content of file without necessary rights.");
-        return Err(Status::Forbidden);
+        Err(err) => {
+            // TODO: Logging
+            println!("Error when updating file content: {}", err);
+            Err(Status::InternalServerError)
+        }
     }
-
-    // Move temporary file to permanent path:
-    let mut new_path = config.file_location.clone();
-    new_path.push(format!("{:x}", file.id));
-    if let Err(_) = file_content.persist_to(new_path).await {
-        // TODO: Logging and remove from DB
-        println!("Could not persist uploaded file.");
-        return Err(Status::InternalServerError);
-    }
-
-    // Send file information as respose:
-    Ok(Json(file))
 }

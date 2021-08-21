@@ -9,6 +9,14 @@ pub trait FsNode {
     fn name(&self) -> &str;
     fn parent_id(&self) -> u64;
     fn owner_id(&self) -> u64;
+
+    fn may_write(&self, user_id: u64) -> bool {
+        user_id == self.owner_id()
+    }
+
+    fn may_read(&self, user_id: u64) -> bool {
+        user_id == self.owner_id()
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -46,6 +54,38 @@ impl Default for File {
             owner_id: 0,
             name: String::from("[new_file]"),
         }
+    }
+}
+
+pub struct FileBuilder {
+    file: File,
+}
+
+impl FileBuilder {
+    pub fn new() -> Self {
+        FileBuilder {
+            file: File::default(),
+        }
+    }
+
+    pub fn build(self) -> File {
+        self.file
+    }
+
+    pub fn with_parent_id(mut self, parent_id: u64) -> Self {
+        self.file.parent_id = parent_id;
+        self
+    }
+    pub fn with_owner_id(mut self, owner_id: u64) -> Self {
+        self.file.owner_id = owner_id;
+        self
+    }
+    pub fn with_name<T: Into<String>>(mut self, name: T) -> Self {
+        self.file.name = name.into();
+        self
+    }
+    pub fn set_name<T: Into<String>>(&mut self, name: T) {
+        self.file.name = name.into();
     }
 }
 
@@ -129,17 +169,38 @@ impl DirBuilder {
         self.dir
     }
 
-    pub fn set_parent_id(mut self, parent_id: u64) -> Self {
+    pub fn set_id(&mut self, id: u64) {
+        self.dir.id = id;
+    }
+
+    pub fn set_parent_id(&mut self, parent_id: u64) {
+        self.dir.parent_id = parent_id;
+    }
+
+    pub fn set_owner_id(&mut self, owner_id: u64) {
+        self.dir.owner_id = owner_id;
+    }
+
+    pub fn set_name<T: Into<String>>(&mut self, name: T) {
+        self.dir.name = name.into();
+    }
+
+    pub fn with_id(mut self, id: u64) -> Self {
+        self.dir.id = id;
+        self
+    }
+
+    pub fn with_parent_id(mut self, parent_id: u64) -> Self {
         self.dir.parent_id = parent_id;
         self
     }
 
-    pub fn set_owner_id(mut self, owner_id: u64) -> Self {
+    pub fn with_owner_id(mut self, owner_id: u64) -> Self {
         self.dir.owner_id = owner_id;
         self
     }
 
-    pub fn set_name<T: Into<String>>(mut self, name: T) -> Self {
+    pub fn with_name<T: Into<String>>(mut self, name: T) -> Self {
         self.dir.name = name.into();
         self
     }

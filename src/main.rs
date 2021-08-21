@@ -7,6 +7,7 @@ use std::{
 };
 
 mod config;
+mod controller;
 mod database;
 mod models;
 mod webapi;
@@ -35,6 +36,8 @@ pub enum Error {
     NoSuchFile,
     InconsistentDbState,
     ForbiddenAction,
+    MissingAuthorization, // Given user doesn't have permission
+    BadCall,              // Calling a function with wrong arguments.
 }
 
 impl Display for Error {
@@ -58,6 +61,11 @@ impl Display for Error {
                 f,
                 "Tried an action, that would result in a forbidden state."
             ),
+            MissingAuthorization => write!(
+                f,
+                "The given user/group does not have the necessary permission for the given action."
+            ),
+            BadCall => write!(f, "Unexpected arguments."),
         }
     }
 }
