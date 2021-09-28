@@ -24,7 +24,7 @@ pub fn get_routes() -> Vec<Route> {
  * returned.
  */
 #[get("/dirs/<dir_id>")]
-pub async fn get_dir_info(
+async fn get_dir_info(
     dir_id: Id,
     session: Option<UserSession>,
     db: &State<Database>,
@@ -56,7 +56,7 @@ pub async fn get_dir_info(
  * Otherwise the metadata of the new directory (JSON representation of a Dir) is returned.
  */
 #[post("/dirs", data = "<dir_info>")]
-pub async fn add_dir(
+async fn add_dir(
     dir_info: Json<DirMsg>,
     session: UserSession,
     db: &State<Database>,
@@ -101,7 +101,7 @@ pub async fn add_dir(
  * The given updates will be written to the database.
  */
 #[put("/dirs/<dir_id>", data = "<dir_infos>")]
-pub async fn update_dir_infos(
+async fn update_dir_infos(
     dir_id: Id,
     dir_infos: Json<DirMsg>,
     session: UserSession,

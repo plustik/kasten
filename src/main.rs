@@ -34,10 +34,12 @@ pub enum Error {
     NoSuchUser,
     NoSuchDir,
     NoSuchFile,
+    NoSuchTarget,           // Calling a function to perform an action on a nonexisting target.
     InconsistentDbState,
     ForbiddenAction,
     MissingAuthorization, // Given user doesn't have permission
     BadCall,              // Calling a function with wrong arguments.
+    TargetExists,       // Tries to create an existing object.
 }
 
 impl Display for Error {
@@ -56,6 +58,7 @@ impl Display for Error {
             NoSuchUser => write!(f, "The given user does not exist in the DB."),
             NoSuchDir => write!(f, "The given directory does not exist in the DB."),
             NoSuchFile => write!(f, "The given file does not exist in the DB."),
+            NoSuchTarget => write!(f, "The given target does not exist in the DB."),
             InconsistentDbState => write!(f, "The DB was found in an inconsisten state."),
             ForbiddenAction => write!(
                 f,
@@ -66,6 +69,7 @@ impl Display for Error {
                 "The given user/group does not have the necessary permission for the given action."
             ),
             BadCall => write!(f, "Unexpected arguments."),
+            TargetExists => write!(f, "Target exists."),
         }
     }
 }

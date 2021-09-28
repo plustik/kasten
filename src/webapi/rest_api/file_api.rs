@@ -27,7 +27,7 @@ pub fn get_routes() -> Vec<Route> {
  * returned.
  */
 #[get("/files/<file_id>")]
-pub async fn get_file_info(
+async fn get_file_info(
     file_id: Id,
     session: Option<UserSession>,
     db: &State<Database>,
@@ -67,7 +67,7 @@ pub async fn get_file_info(
  * Otherwise the metadata of the new File (JSON representation of a File) is returned.
  */
 #[post("/files", data = "<file_info>")]
-pub async fn add_file(
+async fn add_file(
     file_info: Json<FileMsg>,
     session: UserSession,
     db: &State<Database>,
@@ -108,7 +108,7 @@ pub async fn add_file(
  * The given updates will be written to the database.
  */
 #[put("/files/<file_id>", data = "<file_info>")]
-pub async fn update_file_infos(
+async fn update_file_infos(
     file_id: Id,
     file_info: Json<FileMsg>,
     session: UserSession,
@@ -156,7 +156,7 @@ pub async fn update_file_infos(
  * (building a UserSession succeeds) which does not have the necessary rights for this action.
  */
 #[put("/files/<file_id>/data", data = "<file_content>")]
-pub async fn upload_file(
+async fn upload_file(
     file_id: Id,
     file_content: TempFile<'_>,
     session: UserSession,

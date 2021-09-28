@@ -1,3 +1,8 @@
+use argon2::{
+    password_hash::{PasswordHasher, SaltString},
+    Argon2,
+};
+use rand::thread_rng;
 use rocket::{
     fs::{self, FileServer},
     Rocket,
@@ -13,7 +18,7 @@ use std::collections::{hash_map::RandomState, HashMap};
 use crate::{
     config::Config,
     database::Database,
-    models::{Dir, File},
+    models::{Dir, File, User},
 };
 
 mod content_routes;
@@ -133,6 +138,37 @@ impl FileMsg {
         }
         if let Some(name) = self.name {
             file.name = name;
+        }
+    }
+}
+
+/**
+ * Representation of a possibly incomplete User that the server got as a requests body.
+ */
+#[derive(Deserialize)]
+pub struct UserMsg {
+    pub id: Option<u64>,
+    pub name: Option<String>,
+    pub password: Option<String>,
+}
+
+impl UserMsg {
+    pub fn apply_changes(self, user: &mut User) {
+        assert!(self.id.is_none() || self.id.unwrap() == user.id || user.id == 0);
+
+        if let Some(name) = self.name {
+            user.name = name;
+        }
+        if let Some(password) = self.password {
+            // Hash password:
+            let pwd_bytes = password.as_bytes();
+            let mut rng = thread_rng();
+            let salt = SaltString::generate(&mut rng);
+            let argon2 = Argon2::default();
+            user.pwd_hash = argon2
+                .hash_password_simple(pwd_bytes, salt.as_ref())
+                .expect("Could not hash password.")
+                .to_string();
         }
     }
 }

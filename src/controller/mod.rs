@@ -8,6 +8,8 @@ use crate::{
     Error,
 };
 
+pub mod user;
+
 /**
  * Adds a directory (`Dir`) to the database.
  *

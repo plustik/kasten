@@ -194,6 +194,26 @@ impl Database {
         }
     }
 
+    /**
+     * Adds the given User with the given fields to the database. If there is already a user with
+     * the given ID in the DB, it will be overwritten.
+     */
+    pub fn insert_user(&self, user: &User) -> Result<(), Error> {
+
+        // Insert data:
+        (&self.username_id_tree, &self.userid_name_tree, &self.userid_pwd_tree, &self.userid_rootdir_tree).transaction(|(name_id_tt, id_name_tt, pwd_tt, dir_tt)| {
+            name_id_tt.insert(user.name.as_bytes(), &user.id.to_be_bytes())?;
+            id_name_tt.insert(&user.id.to_be_bytes(), user.name.as_bytes())?;
+            pwd_tt.insert(&user.id.to_be_bytes(), user.pwd_hash.as_bytes())?;
+            dir_tt.insert(&user.id.to_be_bytes(), &user.root_dir_id.to_be_bytes())?;
+
+            let res: Result<(), ConflictableTransactionError> = Ok(());
+            res
+        })?;
+
+        Ok(())
+    }
+
     /// Returns the File with the given ID, if it exists in the DB, or None otherwise.
     pub fn get_file(&self, id: u64) -> sled::Result<Option<File>> {
         self.fs_db.get_file(id)
