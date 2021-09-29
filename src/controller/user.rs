@@ -40,6 +40,7 @@ pub fn get_user_info(
 pub fn add_user(user_infos: UserMsg, acting_user_id: u64, db: &Database) -> Result<User, Error> {
     // Make sure the acting user has the necessary permissions:
     if acting_user_id == 0 || true {
+        // TODO: Implement permissions
         return Err(Error::MissingAuthorization);
     }
 
@@ -56,7 +57,8 @@ pub fn add_user(user_infos: UserMsg, acting_user_id: u64, db: &Database) -> Resu
     }
 
     // Check if username allready exists:
-    db.get_userid_by_name(user_infos.name.as_ref().unwrap())?.ok_or(Error::TargetExists)?;
+    db.get_userid_by_name(user_infos.name.as_ref().unwrap())?
+        .ok_or(Error::TargetExists)?;
 
     // Get new random user id:
     let mut rng = thread_rng();
@@ -76,6 +78,7 @@ pub fn add_user(user_infos: UserMsg, acting_user_id: u64, db: &Database) -> Resu
     db.insert_new_dir(&mut root_dir)?;
 
     let mut new_user = User {
+        // Bad pattern; Instead create User from UserMsg directly
         id: user_id,
         name: String::from(""),
         pwd_hash: String::from(""),
@@ -86,4 +89,44 @@ pub fn add_user(user_infos: UserMsg, acting_user_id: u64, db: &Database) -> Resu
     db.insert_user(&new_user)?;
 
     Ok(new_user)
+}
+
+/**
+ * If the user given by `acting_user_id` has the rights necessary to change the attributes of the
+ * user given by `user_infos.id`, these attrbutes will be updated to the values given by
+ * `user_infos` and the changes will be written to the DB.
+ * If `user_infos.id` equals `None`, `Error::BadCall` is returned.
+ * If there is no user with the given ID in the DB, `Error::NoSuchTarget` is retuned.
+ * If the given name allready exists in the DB, `Error::TargetExists` is retuned.
+ * If the user given by `acting_user_id` does not have the rights necessary to add a new user,
+ * `Error::MissingAuthorization` is retuned.
+ */
+pub fn update_user_infos(
+    user_infos: UserMsg,
+    acting_user_id: u64,
+    db: &Database,
+) -> Result<User, Error> {
+    // Make sure the acting user has the necessary permissions:
+    if acting_user_id == 0 || true {
+        // TODO: Implement permissions
+        return Err(Error::MissingAuthorization);
+    }
+
+    // Make sure the id is set:
+    let user_id = if let Some(id) = user_infos.id {
+        id
+    } else {
+        return Err(Error::BadCall);
+    };
+
+    // Check if username allready exists:
+    db.get_userid_by_name(user_infos.name.as_ref().unwrap())?
+        .ok_or(Error::TargetExists)?;
+
+    let mut user = db.get_user(user_id)?.ok_or(Error::NoSuchTarget)?;
+    user_infos.apply_changes(&mut user);
+
+    db.insert_user(&user)?;
+
+    Ok(user)
 }
