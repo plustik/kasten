@@ -116,7 +116,7 @@ fn login(
                 .finish(),
         );
         // Send response:
-        content_pages::dir_page(&db, user.id, user.root_dir_id).map_err(|err| {
+        content_pages::dir_page(db, user.id, user.root_dir_id).map_err(|err| {
             if let Error::DbError(e) = err {
                 // TODO: Add logging
                 //error!("DB-Error while GET /: {}", e);
@@ -177,7 +177,7 @@ fn index(db: &State<Database>, session: UserSession) -> Result<Html<Template>, S
         }
     };
 
-    content_pages::dir_page(&db, user.id, user.root_dir_id).map_err(|err| {
+    content_pages::dir_page(db, user.id, user.root_dir_id).map_err(|err| {
         if let Error::DbError(e) = err {
             // TODO: Add logging
             //error!("DB-Error while GET /: {}", e);
@@ -215,7 +215,7 @@ fn dir_view(
     }
 
     // Responde with dirview page:
-    content_pages::dir_page(&db, session.user_id, dir_id.inner()).map_err(|err| {
+    content_pages::dir_page(db, session.user_id, dir_id.inner()).map_err(|err| {
         match err {
             Error::DbError(e) => {
                 // TODO: Add logging
@@ -246,7 +246,7 @@ fn mkdir(
         .with_name(dir_name)
         .build();
     // TODO: Check the users rights
-    if let Err(_) = db.insert_new_dir(&mut new_dir) {
+    if db.insert_new_dir(&mut new_dir).is_err() {
         return Err(Status::InternalServerError);
     };
 
@@ -269,14 +269,14 @@ async fn upload_file(
         .with_name(upload_name)
         .build();
     // TODO: Check the users rights
-    if let Err(_) = db.insert_new_file(&mut new_file) {
+    if db.insert_new_file(&mut new_file).is_err() {
         return Err(Status::InternalServerError);
     };
 
     // Copy temporary file to new location:
     let mut new_path = config.file_location.clone();
     new_path.push(format!("{:x}", new_file.id));
-    if let Err(_) = tmp_file.persist_to(new_path).await {
+    if tmp_file.persist_to(new_path).await.is_err() {
         // TODO: Logging and remove from DB
         return Err(Status::InternalServerError);
     }

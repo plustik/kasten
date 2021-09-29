@@ -35,17 +35,17 @@ async fn get_file_info(
         return Err(Status::Unauthorized);
     }
 
-    match controller::get_file_info(file_id, session.unwrap().user_id, &db) {
+    match controller::get_file_info(file_id, session.unwrap().user_id, db) {
         Ok(file) => Ok(Json(file)),
         Err(Error::NoSuchFile) => {
             // TODO: Logging
             println!("Error on GET /rest_api/files/...: User requested nonexisting dir.");
-            return Err(Status::NotFound);
+            Err(Status::NotFound)
         }
         Err(err) => {
             // TODO: Logging
             println!("Error on GET /rest_api/files/...: {}", err);
-            return Err(Status::InternalServerError);
+            Err(Status::InternalServerError)
         }
     }
 }
@@ -75,22 +75,22 @@ async fn add_file(
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("Trying to add a file without the necessary rights.");
-            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+            Err(Status::Forbidden) // Maybe Status::NotFound would be more secure?
         }
         Err(Error::NoSuchDir) => {
             // TODO: Logging
             println!("Trying to add to a nonexisting dir.");
-            return Err(Status::NotFound);
+            Err(Status::NotFound)
         }
         Err(Error::BadCall) => {
             // TODO: Logging
             println!("Trying to add a dir without parent.");
-            return Err(Status::BadRequest); // Maybe Status::NotFound would be more secure?
+            Err(Status::BadRequest) // Maybe Status::NotFound would be more secure?
         }
         Err(_) => {
             // TODO: Logging
             println!("Could not insert Dir to DB.");
-            return Err(Status::InternalServerError);
+            Err(Status::InternalServerError)
         }
     }
 }
@@ -123,22 +123,22 @@ async fn update_file_infos(
     }
 
     // Performe update:
-    match controller::update_file_infos(file_info, session.user_id, &db) {
+    match controller::update_file_infos(file_info, session.user_id, db) {
         Ok(file) => Ok(Json(file)),
         Err(Error::NoSuchFile) => {
             // TODO: Logging
             println!("Trying to update a nonexisting file.");
-            return Err(Status::NotFound);
+            Err(Status::NotFound)
         }
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("User tried to update a file which he doesn't own.");
-            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+            Err(Status::Forbidden) // Maybe Status::NotFound would be more secure?
         }
         Err(err) => {
             // TODO: Logging
             println!("Error when updating file: {}", err);
-            return Err(Status::InternalServerError);
+            Err(Status::InternalServerError)
         }
     }
 }

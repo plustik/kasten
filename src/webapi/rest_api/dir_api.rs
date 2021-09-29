@@ -66,22 +66,22 @@ async fn add_dir(
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("Trying to add a dir without the necessary rights.");
-            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+            Err(Status::Forbidden) // Maybe Status::NotFound would be more secure?
         }
         Err(Error::NoSuchDir) => {
             // TODO: Logging
             println!("Trying to add to a nonexisting dir.");
-            return Err(Status::NotFound);
+            Err(Status::NotFound)
         }
         Err(Error::BadCall) => {
             // TODO: Logging
             println!("Trying to add a dir without parent.");
-            return Err(Status::BadRequest); // Maybe Status::NotFound would be more secure?
+            Err(Status::BadRequest) // Maybe Status::NotFound would be more secure?
         }
         Err(_) => {
             // TODO: Logging
             println!("Could not insert Dir to DB.");
-            return Err(Status::InternalServerError);
+            Err(Status::InternalServerError)
         }
     }
 }
@@ -118,24 +118,24 @@ async fn update_dir_infos(
     }
 
     // Performe update:
-    match controller::update_dir_infos(dir_info, session.user_id, &db) {
+    match controller::update_dir_infos(dir_info, session.user_id, db) {
         Ok(dir) => Ok(Json(dir)),
         Err(Error::NoSuchDir) => {
             // TODO: Logging
             println!("Trying to update a nonexisting directory.");
             // TODO: Different status if the parent dir doesn't exist. (see TODO at
             // update_dir_infos)
-            return Err(Status::NotFound);
+            Err(Status::NotFound)
         }
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("User tried to update a directory which he doesn't own.");
-            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+            Err(Status::Forbidden) // Maybe Status::NotFound would be more secure?
         }
         Err(err) => {
             // TODO: Logging
             println!("Error when updating directory: {}", err);
-            return Err(Status::InternalServerError);
+            Err(Status::InternalServerError)
         }
     }
 }

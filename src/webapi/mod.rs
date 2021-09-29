@@ -57,10 +57,10 @@ fn init_template_engine(engines: &mut Engines) {
                 if num.is_u64() {
                     Ok(Value::String(format!("{:x}", num.as_u64().unwrap())))
                 } else {
-                    Err(tera::Error::msg(format!("Number out of bounds: Not a u64")))
+                    Err(tera::Error::msg(String::from("Number out of bounds: Not a u64")))
                 }
             } else {
-                Err(tera::Error::msg(format!("Not a Number")))
+                Err(tera::Error::msg(String::from("Not a Number")))
             }
         }
     }
@@ -77,10 +77,10 @@ fn init_template_engine(engines: &mut Engines) {
                 if let Some(res) = vec.get(1) {
                     Ok(res.clone())
                 } else {
-                    Err(tera::Error::msg(format!("Index out of bounds: 1")))
+                    Err(tera::Error::msg(String::from("Index out of bounds: 1")))
                 }
             } else {
-                Err(tera::Error::msg(format!("Wrong type: Expected Array")))
+                Err(tera::Error::msg(String::from("Wrong type: Expected Array")))
             }
         }
     }

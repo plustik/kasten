@@ -19,8 +19,7 @@ pub fn dir_page(db: &Database, user_id: u64, dir_id: u64) -> Result<Html<Templat
     };
 
     // Create Vec of ancestors:
-    let mut path_nodes = Vec::new();
-    path_nodes.push(dir);
+    let mut path_nodes = vec![dir];
     while path_nodes.last().unwrap().parent_id != 0 {
         let next_parent = if let Some(d) = db.get_dir(path_nodes.last().unwrap().parent_id)? {
             d

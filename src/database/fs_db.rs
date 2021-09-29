@@ -44,7 +44,7 @@ impl FsDatabase {
     /// Returns the directory with the given id, it it exists in the DB.
     pub fn get_dir(&self, id: u64) -> Result<Option<Dir>, Error> {
         match self.dir_tree.get(&id.to_be_bytes()) {
-            Ok(Some(bytes)) => Dir::from_db_entry(id, &bytes).map(|res| Some(res)),
+            Ok(Some(bytes)) => Dir::from_db_entry(id, &bytes).map(Some),
             Ok(None) => Ok(None),
             Err(e) => Err(Error::from(e)),
         }
@@ -268,7 +268,7 @@ impl FsDatabase {
 
                 Ok(res)
             })
-            .map_err(|e| Error::from(e))
+            .map_err(Error::from)
     }
 
     /// Inserts a new dir with the given attributes in the DB.
@@ -387,7 +387,7 @@ impl FsDatabase {
             .transaction(|(dir_tt, file_tt)| {
                 let dir = if let Some(b) = dbg!(self.dir_tree.get(id.to_be_bytes()))? {
                     dbg!(Dir::from_db_entry(id, &b)
-                        .map_err(|e| ConflictableTransactionError::Abort(e))?)
+                        .map_err(ConflictableTransactionError::Abort)?)
                 } else {
                     return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
                 };
@@ -429,14 +429,14 @@ impl FsDatabase {
 
                 // Remove childs from DB:
                 let mut todo_stack: Vec<u64> =
-                    dir.child_ids.iter().map(|int_ref| *int_ref).collect();
+                    dir.child_ids.clone();
 
                 while !todo_stack.is_empty() {
                     let next_id = todo_stack.pop().unwrap();
                     dbg!(next_id);
                     if let Some(bytes) = dir_tt.remove(&next_id.to_be_bytes())? {
                         let dir = dbg!(Dir::from_db_entry(next_id, &bytes)
-                            .map_err(|e| ConflictableTransactionError::Abort(e))?);
+                            .map_err(ConflictableTransactionError::Abort)?);
                         for ch in dir.child_ids {
                             todo_stack.push(ch);
                         }
@@ -448,6 +448,6 @@ impl FsDatabase {
 
                 Ok(dir)
             })
-            .map_err(|err| Error::from(err))
+            .map_err(Error::from)
     }
 }

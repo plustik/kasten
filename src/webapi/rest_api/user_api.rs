@@ -24,7 +24,7 @@ async fn get_user_info(
 ) -> Result<Json<User>, Status> {
     let user_id = user_id.inner();
 
-    match controller::user::get_user_info(user_id, session.user_id, &db) {
+    match controller::user::get_user_info(user_id, session.user_id, db) {
         Ok(user) => Ok(Json(user)),
         Err(Error::NoSuchTarget) => {
             // TODO: Logging
@@ -57,7 +57,7 @@ async fn add_user(
 ) -> Result<Json<User>, Status> {
     let user_msg = user_info.into_inner();
 
-    match controller::user::add_user(user_msg, session.user_id, &db) {
+    match controller::user::add_user(user_msg, session.user_id, db) {
         Ok(user) => Ok(Json(user)),
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
@@ -102,7 +102,7 @@ async fn update_user_infos(
         user_msg.id = Some(user_id.inner());
     }
 
-    match controller::user::update_user_infos(user_msg, session.user_id, &db) {
+    match controller::user::update_user_infos(user_msg, session.user_id, db) {
         Ok(user) => Ok(Json(user)),
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
