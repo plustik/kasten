@@ -10,14 +10,8 @@ use crate::{
 };
 
 pub fn get_routes() -> Vec<Route> {
-    routes![
-        add_file,
-        upload_file,
-        get_file_info,
-        update_file_infos
-    ]
+    routes![add_file, upload_file, get_file_info, update_file_infos]
 }
-
 
 /*
  * If the requests cookies correspond to a valid User (building a UserSession succeeds) who does

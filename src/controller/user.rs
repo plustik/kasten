@@ -1,4 +1,3 @@
-
 use rand::{thread_rng, RngCore};
 
 use crate::{
@@ -15,7 +14,11 @@ use crate::{
  * user given by `querying_user_id` does not have the necessary rights, to view the user given by
  * `queried_user_id`, `Error::MissingAuthorization` is retuned.
  */
-pub fn get_user_info(queried_user_id: u64, querying_user_id: u64, db: &Database) -> Result<User, Error> {
+pub fn get_user_info(
+    queried_user_id: u64,
+    querying_user_id: u64,
+    db: &Database,
+) -> Result<User, Error> {
     // Check, if the querying user is allowed to view the queried user:
     let user = db.get_user(queried_user_id)?.ok_or(Error::NoSuchTarget)?;
 
@@ -25,7 +28,6 @@ pub fn get_user_info(queried_user_id: u64, querying_user_id: u64, db: &Database)
         Err(Error::MissingAuthorization)
     }
 }
-
 
 /**
  * If the user given by `acting_user_id` has the rights necessary to add a new user, the user
@@ -66,14 +68,14 @@ pub fn add_user(user_infos: UserMsg, acting_user_id: u64, db: &Database) -> Resu
     // Create new root dir:
     let mut root_dir = Dir {
         id: 0, // Will be updated by `insert_new_dir()`
-        parent_id: 0, 
+        parent_id: 0,
         owner_id: user_id,
         child_ids: Vec::new(),
         name: String::from("home"),
     };
     db.insert_new_dir(&mut root_dir)?;
 
-    let mut new_user = User{
+    let mut new_user = User {
         id: user_id,
         name: String::from(""),
         pwd_hash: String::from(""),

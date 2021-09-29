@@ -1,7 +1,7 @@
 use rocket::Route;
 
-mod file_api;
 mod dir_api;
+mod file_api;
 mod user_api;
 
 pub fn get_routes() -> Vec<Route> {

@@ -9,11 +9,7 @@ use crate::{
 };
 
 pub fn get_routes() -> Vec<Route> {
-    routes![
-        add_dir,
-        get_dir_info,
-        update_dir_infos,
-    ]
+    routes![add_dir, get_dir_info, update_dir_infos,]
 }
 
 /*

@@ -34,12 +34,12 @@ pub enum Error {
     NoSuchUser,
     NoSuchDir,
     NoSuchFile,
-    NoSuchTarget,           // Calling a function to perform an action on a nonexisting target.
+    NoSuchTarget, // Calling a function to perform an action on a nonexisting target.
     InconsistentDbState,
     ForbiddenAction,
     MissingAuthorization, // Given user doesn't have permission
     BadCall,              // Calling a function with wrong arguments.
-    TargetExists,       // Tries to create an existing object.
+    TargetExists,         // Tries to create an existing object.
 }
 
 impl Display for Error {

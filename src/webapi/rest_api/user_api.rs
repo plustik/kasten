@@ -1,21 +1,16 @@
 use rocket::{http::Status, serde::json::Json, Route, State};
 
+use super::super::UserMsg;
 use crate::{
     controller,
     database::Database,
-    Error,
     models::{Id, User, UserSession},
+    Error,
 };
-use super::super::UserMsg;
 
 pub fn get_routes() -> Vec<Route> {
-    routes![
-        add_user,
-        get_user_info,
-        update_user_infos
-    ]
+    routes![add_user, get_user_info, update_user_infos]
 }
-
 
 /*
  * If the user of the given session has the necessary rights to view the information of the user
@@ -25,7 +20,7 @@ pub fn get_routes() -> Vec<Route> {
 async fn get_user_info(
     user_id: Id,
     session: UserSession,
-    db: &State<Database>
+    db: &State<Database>,
 ) -> Result<Json<User>, Status> {
     let user_id = user_id.inner();
 
@@ -35,12 +30,12 @@ async fn get_user_info(
             // TODO: Logging
             println!("Error on GET /rest_api/users/...: Tried to get a nonexisting User.");
             Err(Status::NotFound)
-        },
+        }
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("Error on GET /rest_api/users/...: Missing rights to get User.");
             Err(Status::Forbidden) // Maybe Status::NotFound would be more secure?
-        },
+        }
         Err(err) => {
             // TODO: Logging
             println!("Error on GET /rest_api/users/...: {}", err);
@@ -65,12 +60,12 @@ async fn add_user(
             // TODO: Logging
             println!("Error on POST /rest_api/users/: Missing rights to add User.");
             Err(Status::Forbidden)
-        },
+        }
         Err(Error::TargetExists) => {
             // TODO: Logging
             println!("Error on POST /rest_api/users: Name exists.");
             Err(Status::Forbidden) // TODO: Replace with correct HTTP status code
-        },
+        }
         Err(err) => {
             // TODO: Logging
             println!("Error on POST /rest_api/users: {}", err);
