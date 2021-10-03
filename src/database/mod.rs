@@ -17,8 +17,8 @@ use user_db::UserDatabase;
 
 pub struct Database {
     _sled_db: Db,
-    session_tree: Tree,        // K: session_id, V: user_id, creation_date
-    user_session_tree: Tree,   // K: user_id, session_id
+    session_tree: Tree,      // K: session_id, V: user_id, creation_date
+    user_session_tree: Tree, // K: user_id, session_id
 
     fs_db: FsDatabase,
     user_db: UserDatabase,

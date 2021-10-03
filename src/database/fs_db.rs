@@ -373,8 +373,8 @@ impl FsDatabase {
     /// Returns an Error with type NoSuchDir, if there is no directory with the given id in the DB.
     pub fn remove_dir(&self, id: u64) -> Result<Dir, Error> {
         // Return an Err, if it is the root dir of an user:
-        if let Some(b) = dbg!(self.dir_tree.get(id.to_be_bytes()))? {
-            let dir = dbg!(Dir::from_db_entry(id, &b))?;
+        if let Some(b) = self.dir_tree.get(id.to_be_bytes())? {
+            let dir = Dir::from_db_entry(id, &b)?;
             if dir.parent_id == 0 {
                 return Err(Error::ForbiddenAction);
             }
@@ -382,12 +382,10 @@ impl FsDatabase {
             return Err(Error::NoSuchDir);
         };
 
-        dbg!("test l310");
         (&self.dir_tree, &self.file_tree)
             .transaction(|(dir_tt, file_tt)| {
-                let dir = if let Some(b) = dbg!(self.dir_tree.get(id.to_be_bytes()))? {
-                    dbg!(Dir::from_db_entry(id, &b)
-                        .map_err(ConflictableTransactionError::Abort)?)
+                let dir = if let Some(b) = self.dir_tree.get(id.to_be_bytes())? {
+                    Dir::from_db_entry(id, &b).map_err(ConflictableTransactionError::Abort)?
                 } else {
                     return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
                 };
@@ -405,8 +403,7 @@ impl FsDatabase {
                 };
 
                 // Decrease child-number:
-                let mut child_number =
-                    dbg!(u16::from_be_bytes(parent_bytes[16..18].try_into().unwrap()));
+                let mut child_number = u16::from_be_bytes(parent_bytes[16..18].try_into().unwrap());
                 // TODO: Handle overflow:
                 child_number -= 1;
                 parent_bytes[16] = child_number.to_be_bytes()[0];
@@ -428,15 +425,13 @@ impl FsDatabase {
                 }
 
                 // Remove childs from DB:
-                let mut todo_stack: Vec<u64> =
-                    dir.child_ids.clone();
+                let mut todo_stack: Vec<u64> = dir.child_ids.clone();
 
                 while !todo_stack.is_empty() {
                     let next_id = todo_stack.pop().unwrap();
-                    dbg!(next_id);
                     if let Some(bytes) = dir_tt.remove(&next_id.to_be_bytes())? {
-                        let dir = dbg!(Dir::from_db_entry(next_id, &bytes)
-                            .map_err(ConflictableTransactionError::Abort)?);
+                        let dir = Dir::from_db_entry(next_id, &bytes)
+                            .map_err(ConflictableTransactionError::Abort)?;
                         for ch in dir.child_ids {
                             todo_stack.push(ch);
                         }

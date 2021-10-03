@@ -41,7 +41,7 @@ pub fn get_user_info(
  */
 pub fn add_user(user_infos: UserMsg, acting_user_id: u64, db: &Database) -> Result<User, Error> {
     // Make sure the acting user has the necessary permissions:
-    if acting_user_id != 0 { // TODO: Implement permissions
+    if acting_user_id != 0 {
         // TODO: Implement permissions
         return Err(Error::MissingAuthorization);
     }
@@ -109,7 +109,7 @@ pub fn update_user_infos(
     db: &Database,
 ) -> Result<User, Error> {
     // Make sure the acting user has the necessary permissions:
-    if acting_user_id != 0 { // TODO: Implement permissions
+    if acting_user_id != 0 {
         // TODO: Implement permissions
         return Err(Error::MissingAuthorization);
     }

@@ -326,7 +326,7 @@ fn download_file(
 #[delete("/dirs/<dir_id>")]
 fn remove_dir(dir_id: Id, session: UserSession, db: &State<Database>) -> Result<Json<Dir>, Status> {
     // Check, if the user is allowed to access the directory:
-    let dir = match dbg!(db.get_dir(dir_id.inner())) {
+    let dir = match db.get_dir(dir_id.inner()) {
         Ok(Some(d)) => d,
         Ok(None) => {
             return Err(Status::NotFound);
@@ -343,7 +343,7 @@ fn remove_dir(dir_id: Id, session: UserSession, db: &State<Database>) -> Result<
     }
 
     // Remove directory:
-    match dbg!(db.remove_dir(dir_id.inner())) {
+    match db.remove_dir(dir_id.inner()) {
         Ok(dir) => {
             // Send directory as response:
             Ok(Json(dir))

@@ -57,7 +57,9 @@ fn init_template_engine(engines: &mut Engines) {
                 if num.is_u64() {
                     Ok(Value::String(format!("{:x}", num.as_u64().unwrap())))
                 } else {
-                    Err(tera::Error::msg(String::from("Number out of bounds: Not a u64")))
+                    Err(tera::Error::msg(String::from(
+                        "Number out of bounds: Not a u64",
+                    )))
                 }
             } else {
                 Err(tera::Error::msg(String::from("Not a Number")))
