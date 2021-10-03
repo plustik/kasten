@@ -5,7 +5,7 @@ use rocket::{
 };
 use serde::Serialize;
 
-use crate::database::Database;
+use crate::{database::Database, webapi::GroupMsg};
 
 #[derive(Serialize)]
 pub struct User {
@@ -15,11 +15,35 @@ pub struct User {
     pub root_dir_id: u64,
 }
 
-struct Group {
-    id: u64,
-    name: String,
-    admin_id: u64,
-    member_ids: u64,
+pub struct Group {
+    pub id: u64,
+    pub name: String,
+    pub member_ids: Vec<u64>,
+    pub admin_ids: Vec<u64>,
+}
+
+impl Group {
+    pub fn contains_user(&self, user_id: u64) -> bool {
+        self.member_ids.contains(&user_id)
+    }
+
+    pub fn contains_admin(&self, user_id: u64) -> bool {
+        self.admin_ids.contains(&user_id)
+    }
+}
+
+impl From<GroupMsg> for Group {
+    fn from(item: GroupMsg) -> Self {
+        let id = item.id.unwrap_or(0);
+        let name = item.name.unwrap_or(String::from("[MISSING_NAME]"));
+
+        Group {
+            id,
+            name,
+            member_ids: Vec::new(),
+            admin_ids: Vec::new(),
+        }
+    }
 }
 
 #[derive(Debug)]

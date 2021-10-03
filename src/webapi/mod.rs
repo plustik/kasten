@@ -18,7 +18,7 @@ use std::collections::{hash_map::RandomState, HashMap};
 use crate::{
     config::Config,
     database::Database,
-    models::{Dir, File, User},
+    models::{Dir, File, Group, User},
 };
 
 mod content_routes;
@@ -169,6 +169,25 @@ impl UserMsg {
                 .hash_password_simple(pwd_bytes, salt.as_ref())
                 .expect("Could not hash password.")
                 .to_string();
+        }
+    }
+}
+
+/**
+ * Representation of a possibly incomplete Group that the server got as a requests body.
+ */
+#[derive(Deserialize)]
+pub struct GroupMsg {
+    pub id: Option<u64>,
+    pub name: Option<String>,
+}
+
+impl GroupMsg {
+    pub fn apply_changes(self, group: &mut Group) {
+        assert!(self.id.is_none() || self.id.unwrap() == group.id || group.id == 0);
+
+        if let Some(name) = self.name {
+            group.name = name;
         }
     }
 }

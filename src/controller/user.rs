@@ -31,15 +31,17 @@ pub fn get_user_info(
 
 /**
  * If the user given by `acting_user_id` has the rights necessary to add a new user, the user
- * with the attrbutes given by user_infos is added to the DB. If some necessary attrbutes are
+ * with the attrtbutes given by user_infos is added to the DB. If some necessary attributes are
  * missing, `Error::BadCall` is returned. If the given name allready exists in the DB,
  * `Error::TargetExists` is retuned.
  * If the user given by `acting_user_id` does not have the rights necessary to add a new user,
  * `Error::MissingAuthorization` is retuned.
+ * This function in not thread-save. Calling this function multiple times in parallel may lead to
+ * multiple users with the same ID.
  */
 pub fn add_user(user_infos: UserMsg, acting_user_id: u64, db: &Database) -> Result<User, Error> {
     // Make sure the acting user has the necessary permissions:
-    if acting_user_id == 0 { // TODO: Implement permissions
+    if acting_user_id != 0 { // TODO: Implement permissions
         // TODO: Implement permissions
         return Err(Error::MissingAuthorization);
     }
@@ -63,7 +65,7 @@ pub fn add_user(user_infos: UserMsg, acting_user_id: u64, db: &Database) -> Resu
     // Get new random user id:
     let mut rng = thread_rng();
     let mut user_id = rng.next_u64();
-    while db.get_user(user_id)?.is_some() {
+    while db.get_user(user_id)?.is_some() || db.get_dir(user_id)?.is_some() {
         user_id = rng.next_u64();
     }
 
@@ -93,12 +95,12 @@ pub fn add_user(user_infos: UserMsg, acting_user_id: u64, db: &Database) -> Resu
 
 /**
  * If the user given by `acting_user_id` has the rights necessary to change the attributes of the
- * user given by `user_infos.id`, these attrbutes will be updated to the values given by
+ * user given by `user_infos.id`, these attributes will be updated to the values given by
  * `user_infos` and the changes will be written to the DB.
  * If `user_infos.id` equals `None`, `Error::BadCall` is returned.
  * If there is no user with the given ID in the DB, `Error::NoSuchTarget` is retuned.
  * If the given name allready exists in the DB, `Error::TargetExists` is retuned.
- * If the user given by `acting_user_id` does not have the rights necessary to add a new user,
+ * If the user given by `acting_user_id` does not have the rights necessary to change the given user,
  * `Error::MissingAuthorization` is retuned.
  */
 pub fn update_user_infos(
@@ -107,7 +109,7 @@ pub fn update_user_infos(
     db: &Database,
 ) -> Result<User, Error> {
     // Make sure the acting user has the necessary permissions:
-    if acting_user_id == 0 { // TODO: Implement permissions
+    if acting_user_id != 0 { // TODO: Implement permissions
         // TODO: Implement permissions
         return Err(Error::MissingAuthorization);
     }

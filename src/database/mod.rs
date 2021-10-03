@@ -6,23 +6,22 @@ use sled::{transaction::ConflictableTransactionError, Db, Transactional, Tree};
 
 use crate::{
     config::Config,
-    models::{Dir, File, User, UserSession},
+    models::{Dir, File, Group, User, UserSession},
     Error,
 };
 
 mod fs_db;
 use fs_db::FsDatabase;
+mod user_db;
+use user_db::UserDatabase;
 
 pub struct Database {
     _sled_db: Db,
     session_tree: Tree,        // K: session_id, V: user_id, creation_date
     user_session_tree: Tree,   // K: user_id, session_id
-    username_id_tree: Tree,    // K: username, V: user_id
-    userid_name_tree: Tree,    // K: user_id, V: username
-    userid_pwd_tree: Tree,     // K: user_id, V: pwd_hash
-    userid_rootdir_tree: Tree, // K: user_id, V: dir_id
 
     fs_db: FsDatabase,
+    user_db: UserDatabase,
 }
 
 impl Database {
@@ -37,30 +36,16 @@ impl Database {
         let user_session_tree = sled_db
             .open_tree(b"user_sessions")
             .expect("Could not open sessions tree.");
-        let username_id_tree = sled_db
-            .open_tree(b"usernames_ids")
-            .expect("Could not open userids tree.");
-        let userid_name_tree = sled_db
-            .open_tree(b"userids_names")
-            .expect("Could not open username tree.");
-        let userid_pwd_tree = sled_db
-            .open_tree(b"userids_pwds")
-            .expect("Could not open password tree.");
-        let userid_rootdir_tree = sled_db
-            .open_tree("userid_rootdir")
-            .expect("Could not open root-dir tree.");
 
         let fs_db = FsDatabase::init(&sled_db)?;
+        let user_db = UserDatabase::init(&sled_db)?;
 
         Ok(Database {
             _sled_db: sled_db,
             session_tree,
             user_session_tree,
-            username_id_tree,
-            userid_name_tree,
-            userid_pwd_tree,
-            userid_rootdir_tree,
             fs_db,
+            user_db,
         })
     }
 
@@ -153,45 +138,11 @@ impl Database {
     }
 
     pub fn get_user(&self, user_id: u64) -> sled::Result<Option<User>> {
-        let user_id_bytes = user_id.to_be_bytes();
-
-        let username = if let Some(username_bytes) = self.userid_name_tree.get(user_id_bytes)? {
-            String::from_utf8(Vec::from(username_bytes.as_ref())).unwrap()
-        } else {
-            return Ok(None);
-        };
-        let pwd_hash = if let Some(hash_bytes) = self.userid_pwd_tree.get(user_id_bytes)? {
-            String::from_utf8(Vec::from(hash_bytes.as_ref())).unwrap()
-        } else {
-            return Ok(None);
-        };
-        let root_dir_id = if let Some(dir_id_bytes) = self.userid_rootdir_tree.get(user_id_bytes)? {
-            u64::from_be_bytes(
-                dir_id_bytes
-                    .as_ref()
-                    .try_into()
-                    .expect("DB contains invalid root dir."),
-            )
-        } else {
-            return Ok(None);
-        };
-
-        Ok(Some(User {
-            id: user_id,
-            name: username,
-            pwd_hash,
-            root_dir_id,
-        }))
+        self.user_db.get_user(user_id)
     }
 
     pub fn get_userid_by_name(&self, username: &str) -> sled::Result<Option<u64>> {
-        if let Some(id_bytes) = self.username_id_tree.get(username.as_bytes())? {
-            Ok(Some(u64::from_be_bytes(
-                id_bytes.as_ref().try_into().unwrap(),
-            )))
-        } else {
-            Ok(None)
-        }
+        self.user_db.get_userid_by_name(username)
     }
 
     /**
@@ -199,24 +150,42 @@ impl Database {
      * the given ID in the DB, it will be overwritten.
      */
     pub fn insert_user(&self, user: &User) -> Result<(), Error> {
-        // Insert data:
-        (
-            &self.username_id_tree,
-            &self.userid_name_tree,
-            &self.userid_pwd_tree,
-            &self.userid_rootdir_tree,
-        )
-            .transaction(|(name_id_tt, id_name_tt, pwd_tt, dir_tt)| {
-                name_id_tt.insert(user.name.as_bytes(), &user.id.to_be_bytes())?;
-                id_name_tt.insert(&user.id.to_be_bytes(), user.name.as_bytes())?;
-                pwd_tt.insert(&user.id.to_be_bytes(), user.pwd_hash.as_bytes())?;
-                dir_tt.insert(&user.id.to_be_bytes(), &user.root_dir_id.to_be_bytes())?;
+        self.user_db.insert_user(user)
+    }
 
-                let res: Result<(), ConflictableTransactionError> = Ok(());
-                res
-            })?;
+    /**
+     * Returns the Group given by the ID `group_id`. If no such group exists, `Ok(None)` is
+     * returned.
+     */
+    pub fn get_group(&self, group_id: u64) -> Result<Option<Group>, Error> {
+        self.user_db.get_group(group_id)
+    }
 
-        Ok(())
+    /**
+     * If there is a group in the DB with the name given by `groupname`, its ID is returned.
+     * Otherwise `Ok(None)` is retuned.
+     */
+    pub fn get_groupid_by_name(&self, groupname: &str) -> sled::Result<Option<u64>> {
+        self.user_db.get_groupid_by_name(groupname)
+    }
+
+    /**
+     * Adds a new Group with the given fields to the database. The ID of the given Group will be
+     * set to a new random and unique value.
+     */
+    pub fn insert_new_group(&self, group: &mut Group) -> Result<(), Error> {
+        self.user_db.insert_new_group(group)
+    }
+
+    /**
+     * Adds the given Group with the given fields to the database. If there is already a group with
+     * the given ID in the DB, it will be overwritten. If there already is a different group with
+     * the same name in the DB, `Error::TargetExists` is returned. If the given Groups number of
+     * members or admins exceeds the maximum, that can be stored in the DB (`u16::MAX`),
+     * `Error::BadCall` is returned.
+     */
+    pub fn insert_group(&self, group: &Group) -> Result<(), Error> {
+        self.user_db.insert_group(group)
     }
 
     /// Returns the File with the given ID, if it exists in the DB, or None otherwise.

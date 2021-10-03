@@ -8,6 +8,7 @@ use crate::{
     Error,
 };
 
+pub mod group;
 pub mod user;
 
 /**
