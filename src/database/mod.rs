@@ -137,7 +137,7 @@ impl Database {
         Ok(Some(UserSession::new(session_id, user_id, creation_date)))
     }
 
-    pub fn get_user(&self, user_id: u64) -> sled::Result<Option<User>> {
+    pub fn get_user(&self, user_id: u64) -> Result<Option<User>, Error> {
         self.user_db.get_user(user_id)
     }
 
@@ -213,11 +213,7 @@ impl Database {
      * The function finds a new id for the File and updates the id field accordingly.
      */
     pub fn insert_new_file(&self, file: &mut File) -> Result<(), Error> {
-        // TODO: Refactor fs_db.insert_new_file to take a &mut File as argument too.
-        file.id = self
-            .fs_db
-            .insert_new_file(file.parent_id, file.owner_id, file.name.as_str())?
-            .id;
+        self.fs_db.insert_new_file(file)?;
         Ok(())
     }
 
@@ -244,11 +240,7 @@ impl Database {
      * Ids in the child_ids Vec will be ignored and not written to the DB.
      */
     pub fn insert_new_dir(&self, dir: &mut Dir) -> Result<(), Error> {
-        // TODO: Refactor fs_db.insert_new_dir to take a &mut Dir as argument too.
-        dir.id = self
-            .fs_db
-            .insert_new_dir(dir.parent_id, dir.owner_id, dir.name.as_str())?
-            .id;
+        self.fs_db.insert_new_dir(dir)?;
         Ok(())
     }
 

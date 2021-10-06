@@ -93,11 +93,80 @@ fn init_template_engine(engines: &mut Engines) {
  * Representation of a possibly incomplete Dir that the server got as a requests body.
  */
 #[derive(Deserialize)]
+pub struct PermissionMsg {
+    pub user_may_read: Option<bool>,
+    pub user_may_write: Option<bool>,
+    pub group_may_read: Option<bool>,
+    pub group_may_write: Option<bool>,
+    pub all_may_read: Option<bool>,
+    pub all_may_write: Option<bool>,
+}
+
+impl PermissionMsg {
+    fn update_permission_bits(&self, bits: &mut u16) {
+        if let Some(true) = self.user_may_read {
+            *bits |= 0b100000000;
+        } else if let Some(false) = self.user_may_read {
+            *bits &= 0b011111111;
+        }
+        if let Some(true) = self.user_may_write {
+            *bits |= 0b010000000;
+        } else if let Some(false) = self.user_may_write {
+            *bits &= 0b101111111;
+        }
+        if let Some(true) = self.group_may_read {
+            *bits |= 0b000100000;
+        } else if let Some(false) = self.group_may_read {
+            *bits &= 0b111011111;
+        }
+        if let Some(true) = self.group_may_write {
+            *bits |= 0b000010000;
+        } else if let Some(false) = self.group_may_write {
+            *bits &= 0b111101111;
+        }
+        if let Some(true) = self.all_may_read {
+            *bits |= 0b000000100;
+        } else if let Some(false) = self.all_may_read {
+            *bits &= 0b111111011;
+        }
+        if let Some(true) = self.all_may_write {
+            *bits |= 0b000000010;
+        } else if let Some(false) = self.all_may_write {
+            *bits &= 0b111111101;
+        }
+    }
+}
+impl Default for PermissionMsg {
+    fn default() -> Self {
+        PermissionMsg {
+            user_may_read: None,
+            user_may_write: None,
+            group_may_read: None,
+            group_may_write: None,
+            all_may_read: None,
+            all_may_write: None,
+        }
+    }
+}
+impl Into<u16> for PermissionMsg {
+    fn into(self) -> u16 {
+        let mut res = 0;
+        self.update_permission_bits(&mut res);
+        res
+    }
+}
+
+/**
+ * Representation of a possibly incomplete Dir that the server got as a requests body.
+ */
+#[derive(Deserialize)]
 pub struct DirMsg {
     pub id: Option<u64>,
     pub parent_id: Option<u64>,
     pub owner_id: Option<u64>,
     pub child_ids: Option<Vec<u64>>,
+    #[serde(default)]
+    pub permissions: PermissionMsg,
     pub name: Option<String>,
 }
 
@@ -114,6 +183,9 @@ impl DirMsg {
         if let Some(name) = self.name {
             dir.name = name;
         }
+        // Update permission bit:
+        self.permissions
+            .update_permission_bits(&mut dir.permission_bits);
     }
 }
 
@@ -125,6 +197,8 @@ pub struct FileMsg {
     pub id: Option<u64>,
     pub parent_id: Option<u64>,
     pub owner_id: Option<u64>,
+    #[serde(default)]
+    pub permissions: PermissionMsg,
     pub name: Option<String>,
 }
 
@@ -141,6 +215,9 @@ impl FileMsg {
         if let Some(name) = self.name {
             file.name = name;
         }
+        // Update permission bit:
+        self.permissions
+            .update_permission_bits(&mut file.permission_bits);
     }
 }
 

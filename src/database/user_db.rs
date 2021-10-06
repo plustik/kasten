@@ -59,7 +59,7 @@ impl UserDatabase {
         })
     }
 
-    pub fn get_user(&self, user_id: u64) -> sled::Result<Option<User>> {
+    pub fn get_user(&self, user_id: u64) -> Result<Option<User>, Error> {
         let user_id_bytes = user_id.to_be_bytes();
 
         let username = if let Some(username_bytes) = self.userid_name_tree.get(user_id_bytes)? {
@@ -82,12 +82,28 @@ impl UserDatabase {
         } else {
             return Ok(None);
         };
+        let mut group_ids = Vec::new();
+        if let Some(bytes) = self.user_groups_tree.get(user_id_bytes)? {
+            let id_count = u16::from_be_bytes(bytes[..2].try_into().unwrap()) as usize;
+            for index in (2..(2 + 8 * id_count)).step_by(8) {
+                let id = u64::from_be_bytes(bytes[index..index + 8].try_into().unwrap());
+                if self
+                    .get_group(id)?
+                    .expect("Expected a nonexisting DB entry.")
+                    .member_ids
+                    .contains(&id)
+                {
+                    group_ids.push(id);
+                }
+            }
+        }
 
         Ok(Some(User {
             id: user_id,
             name: username,
             pwd_hash,
             root_dir_id,
+            group_ids,
         }))
     }
 

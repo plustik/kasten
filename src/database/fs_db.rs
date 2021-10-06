@@ -9,8 +9,8 @@ use crate::{
 };
 
 pub struct FsDatabase {
-    file_tree: Tree, // K: file_id, V: parent_id, owner_id, name
-    dir_tree: Tree,  // K: dir_id, V: parent_id, owner_id, child_number(u16), file/dir_ids..., name
+    file_tree: Tree, // K: file_id, V: parent_id, owner_id, permissions (u16), name
+    dir_tree: Tree, // K: dir_id, V: parent_id, owner_id, permissions (u16), child_number(u16), file/dir_ids..., name
 }
 
 impl FsDatabase {
@@ -36,7 +36,8 @@ impl FsDatabase {
                 id,
                 parent_id: u64::from_be_bytes(bytes[0..8].try_into().unwrap()),
                 owner_id: u64::from_be_bytes(bytes[8..16].try_into().unwrap()),
-                name: String::from_utf8(Vec::from(&bytes[16..])).unwrap(),
+                permission_bits: u16::from_be_bytes(bytes[16..18].try_into().unwrap()),
+                name: String::from_utf8(Vec::from(&bytes[18..])).unwrap(),
             })
         })
     }
@@ -53,7 +54,7 @@ impl FsDatabase {
     /// Returns the IDs of the given directory's childs.
     fn get_dirs_childs(&self, dir_id: u64) -> Result<Vec<u64>, Error> {
         if let Some(dir) = self.dir_tree.get(dir_id.to_be_bytes())? {
-            let child_number = u16::from_be_bytes(dir[16..18].try_into().unwrap()) as usize;
+            let child_number = u16::from_be_bytes(dir[18..20].try_into().unwrap()) as usize;
             let mut child_ids = Vec::with_capacity(child_number);
             let mut i = 18;
             for _ in 0..child_number {
@@ -78,7 +79,8 @@ impl FsDatabase {
                     id,
                     parent_id: u64::from_be_bytes(bytes[0..8].try_into().unwrap()),
                     owner_id: u64::from_be_bytes(bytes[8..16].try_into().unwrap()),
-                    name: String::from_utf8(Vec::from(&bytes[16..])).unwrap(),
+                    permission_bits: u16::from_be_bytes(bytes[16..18].try_into().unwrap()),
+                    name: String::from_utf8(Vec::from(&bytes[18..])).unwrap(),
                 });
             }
         }
@@ -116,28 +118,24 @@ impl FsDatabase {
         Ok(self.is_file(id)? || self.is_dir(id)?)
     }
 
-    /// Inserts a new file with the given attributes in the DB.
-    /// If no errors occour, a representation of the new file is returned.
-    pub fn insert_new_file(
-        &self,
-        parent_id: u64,
-        owner_id: u64,
-        name: &str,
-    ) -> Result<File, Error> {
+    /// Inserts a new file with the given attributes in the DB. The ID of the given file will be
+    /// updated to a new unique value.
+    pub fn insert_new_file(&self, file: &mut File) -> Result<(), Error> {
         // Generate new file-id:
         let mut rng = thread_rng();
-        let mut file_id = rng.next_u64();
-        while self.contains_node_id(file_id)? || file_id == 0 {
-            file_id = rng.next_u64();
+        file.id = rng.next_u64();
+        while self.contains_node_id(file.id)? || file.id == 0 {
+            file.id = rng.next_u64();
         }
 
         // Byte representation of new file:
-        let mut data = Vec::from(&parent_id.to_be_bytes()[..]);
-        data.extend_from_slice(&owner_id.to_be_bytes());
-        data.extend_from_slice(name.as_bytes());
+        let mut data = Vec::from(&file.parent_id.to_be_bytes()[..]);
+        data.extend_from_slice(&file.owner_id.to_be_bytes());
+        data.extend_from_slice(&file.permission_bits.to_be_bytes());
+        data.extend_from_slice(file.name.as_bytes());
 
         (&self.file_tree, &self.dir_tree).transaction(|(file_tt, dir_tt)| {
-            let parent_bytes = if let Some(b) = dir_tt.get(parent_id.to_be_bytes())? {
+            let parent_bytes = if let Some(b) = dir_tt.get(file.parent_id.to_be_bytes())? {
                 b
             } else {
                 return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
@@ -154,26 +152,21 @@ impl FsDatabase {
             new_parent_bytes
                 .extend_from_slice(&parent_bytes[18..(18 + (child_number as usize - 1) * 8)]);
             // Add new child:
-            new_parent_bytes.extend_from_slice(&file_id.to_be_bytes());
+            new_parent_bytes.extend_from_slice(&file.id.to_be_bytes());
             // Add name of parent:
             new_parent_bytes
                 .extend_from_slice(&parent_bytes[(18 + (child_number as usize - 1) * 8)..]);
 
             // Insert new parent directory:
-            dir_tt.insert(&parent_id.to_be_bytes(), new_parent_bytes)?;
+            dir_tt.insert(&file.parent_id.to_be_bytes(), new_parent_bytes)?;
 
             // Insert file into file-tree:
-            file_tt.insert(&file_id.to_be_bytes(), data.as_slice())?;
+            file_tt.insert(&file.id.to_be_bytes(), data.as_slice())?;
 
             Ok(())
         })?;
 
-        Ok(File {
-            id: file_id,
-            parent_id,
-            owner_id,
-            name: String::from(name),
-        })
+        Ok(())
     }
 
     /**
@@ -198,6 +191,8 @@ impl FsDatabase {
             new_bytes.extend_from_slice(&new_file.parent_id.to_be_bytes());
             // Add owner_id:
             new_bytes.extend_from_slice(&new_file.owner_id.to_be_bytes());
+            // Add permission_bits:
+            new_bytes.extend_from_slice(&new_file.permission_bits.to_be_bytes());
             // Add name:
             new_bytes.extend_from_slice(new_file.name.as_bytes());
 
@@ -227,7 +222,8 @@ impl FsDatabase {
                     id,
                     parent_id: u64::from_be_bytes(bytes[0..8].try_into().unwrap()),
                     owner_id: u64::from_be_bytes(bytes[8..16].try_into().unwrap()),
-                    name: String::from_utf8(Vec::from(&bytes[16..])).unwrap(),
+                    permission_bits: u16::from_be_bytes(bytes[16..18].try_into().unwrap()),
+                    name: String::from_utf8(Vec::from(&bytes[18..])).unwrap(),
                 };
 
                 // Remove file from parent:
@@ -271,62 +267,57 @@ impl FsDatabase {
             .map_err(Error::from)
     }
 
-    /// Inserts a new dir with the given attributes in the DB.
-    /// If no errors occour, a representation of the new dir is returned.
-    pub fn insert_new_dir(&self, parent_id: u64, owner_id: u64, name: &str) -> Result<Dir, Error> {
+    /// Inserts a new dir with the given attributes in the DB. The ID if the given Dir will be set
+    /// to a new unique value.
+    pub fn insert_new_dir(&self, dir: &mut Dir) -> Result<(), Error> {
         // Generate new dir-id:
         let mut rng = thread_rng();
-        let mut dir_id = rng.next_u64();
-        while self.contains_node_id(dir_id)? || dir_id == 0 {
-            dir_id = rng.next_u64();
+        dir.id = rng.next_u64();
+        while self.contains_node_id(dir.id)? || dir.id == 0 {
+            dir.id = rng.next_u64();
         }
 
         // Byte representation of new dir:
-        let mut data = Vec::from(&parent_id.to_be_bytes()[..]);
-        data.extend_from_slice(&owner_id.to_be_bytes());
+        let mut data = Vec::from(&dir.parent_id.to_be_bytes()[..]);
+        data.extend_from_slice(&dir.owner_id.to_be_bytes());
+        data.extend_from_slice(&dir.permission_bits.to_be_bytes());
         data.push(0); // Child number
         data.push(0); // Child number
-        data.extend_from_slice(name.as_bytes());
+        data.extend_from_slice(dir.name.as_bytes());
 
         self.dir_tree.transaction(|dir_tt| {
-            let parent_bytes = if let Some(b) = dir_tt.get(parent_id.to_be_bytes())? {
+            let parent_bytes = if let Some(b) = dir_tt.get(dir.parent_id.to_be_bytes())? {
                 b
             } else {
                 return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
             };
-            let mut new_parent_bytes = Vec::from(&parent_bytes[0..16]);
+            let mut new_parent_bytes = Vec::from(&parent_bytes[0..18]);
 
             // Increase child-number:
-            let mut child_number = u16::from_be_bytes(parent_bytes[16..18].try_into().unwrap());
+            let mut child_number = u16::from_be_bytes(parent_bytes[18..20].try_into().unwrap());
             // TODO: Handle overflow:
             child_number += 1;
             new_parent_bytes.push(child_number.to_be_bytes()[0]);
             new_parent_bytes.push(child_number.to_be_bytes()[1]);
             // Add old childs:
             new_parent_bytes
-                .extend_from_slice(&parent_bytes[18..(18 + (child_number as usize - 1) * 8)]);
+                .extend_from_slice(&parent_bytes[20..(20 + (child_number as usize - 1) * 8)]);
             // Add new child:
-            new_parent_bytes.extend_from_slice(&dir_id.to_be_bytes());
+            new_parent_bytes.extend_from_slice(&dir.id.to_be_bytes());
             // Add name of parent:
             new_parent_bytes
-                .extend_from_slice(&parent_bytes[(18 + (child_number as usize - 1) * 8)..]);
+                .extend_from_slice(&parent_bytes[(20 + (child_number as usize - 1) * 8)..]);
 
             // Insert new parent directory:
-            dir_tt.insert(&parent_id.to_be_bytes(), new_parent_bytes)?;
+            dir_tt.insert(&dir.parent_id.to_be_bytes(), new_parent_bytes)?;
 
             // Insert directory into dir-tree:
-            dir_tt.insert(&dir_id.to_be_bytes(), data.as_slice())?;
+            dir_tt.insert(&dir.id.to_be_bytes(), data.as_slice())?;
 
             Ok(())
         })?;
 
-        Ok(Dir {
-            id: dir_id,
-            parent_id,
-            owner_id,
-            child_ids: Vec::new(),
-            name: String::from(name),
-        })
+        Ok(())
     }
 
     /**
@@ -351,12 +342,14 @@ impl FsDatabase {
             new_bytes.extend_from_slice(&new_dir.parent_id.to_be_bytes());
             // Add owner_id:
             new_bytes.extend_from_slice(&new_dir.owner_id.to_be_bytes());
+            // Add permission bits:
+            new_bytes.extend_from_slice(&new_dir.permission_bits.to_be_bytes());
             // Add childs:
-            let end_of_childs: usize = (18
-                + 8 * (u16::from_be_bytes(old_bytes[16..18].try_into().unwrap())))
+            let end_of_childs: usize = (20
+                + 8 * (u16::from_be_bytes(old_bytes[18..20].try_into().unwrap())))
             .try_into()
             .unwrap();
-            new_bytes.extend_from_slice(&old_bytes[16..end_of_childs]);
+            new_bytes.extend_from_slice(&old_bytes[18..end_of_childs]);
             // Add name:
             new_bytes.extend_from_slice(new_dir.name.as_bytes());
 

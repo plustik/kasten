@@ -39,6 +39,7 @@ pub fn add_dir(db: &Database, dir_infos: DirMsg, user_id: u64) -> Result<Dir, Er
     if let Some(n) = dir_infos.name {
         dir_builder.set_name(n);
     }
+    dir_builder.set_permissions(dir_infos.permissions);
     let mut new_dir = dir_builder.build();
 
     db.insert_new_dir(&mut new_dir)?;
@@ -125,6 +126,7 @@ pub fn add_file(db: &Database, file_info: FileMsg, user_id: u64) -> Result<File,
     if let Some(n) = file_info.name {
         file_builder.set_name(n);
     }
+    file_builder.set_permissions(file_info.permissions);
     let mut new_file = file_builder.build();
 
     // Add new file:

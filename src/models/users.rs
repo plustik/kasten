@@ -13,6 +13,7 @@ pub struct User {
     pub name: String,
     pub pwd_hash: String,
     pub root_dir_id: u64,
+    pub group_ids: Vec<u64>,
 }
 
 pub struct Group {
