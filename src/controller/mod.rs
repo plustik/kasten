@@ -14,8 +14,9 @@ pub mod user;
 /**
  * Adds a directory (`Dir`) to the database.
  *
- * The new directory receives a new unique id and has no childs. Other fields like `name` and
- * `parent_id` should be given by the argument `dir_infos`.
+ * The new directory receives a new unique id and has no childs. No groups will have read or write
+ * permissions on this directory. Other fields like `name` and `parent_id` should be given by the
+ * argument `dir_infos`.
  * If the id given by `user_id` does not correspond to a user who has the necessary rights (for the
  * parent directory), an `Err` is returned.
  * If a necessary field is missing, an `Err` is returned.
@@ -27,7 +28,7 @@ pub fn add_dir(db: &Database, dir_infos: DirMsg, user_id: u64) -> Result<Dir, Er
         .parent_id
         .ok_or(Error::BadCall)
         .map(|p_id| db.get_dir(p_id)?.ok_or(Error::NoSuchDir))??
-        .may_write(user_id)
+        .may_write(&db.get_user(user_id)?.ok_or(Error::BadCall)?)
     {
         return Err(Error::MissingAuthorization);
     }
@@ -39,7 +40,6 @@ pub fn add_dir(db: &Database, dir_infos: DirMsg, user_id: u64) -> Result<Dir, Er
     if let Some(n) = dir_infos.name {
         dir_builder.set_name(n);
     }
-    dir_builder.set_permissions(dir_infos.permissions);
     let mut new_dir = dir_builder.build();
 
     db.insert_new_dir(&mut new_dir)?;
@@ -58,7 +58,7 @@ pub fn get_dir_info(dir_id: u64, user_id: Option<u64>, db: &Database) -> Result<
     // Check, if the user is allowed to access the directory:
     let dir = db.get_dir(dir_id)?.ok_or(Error::NoSuchDir)?;
 
-    if user_id.is_some() && dir.may_read(user_id.unwrap()) {
+    if user_id.is_some() && dir.may_read(&db.get_user(user_id.unwrap())?.ok_or(Error::BadCall)?) {
         Ok(dir)
     } else {
         Err(Error::MissingAuthorization)
@@ -70,7 +70,7 @@ pub fn get_dir_info(dir_id: u64, user_id: Option<u64>, db: &Database) -> Result<
  * given by the not `None` fields of the same struct.
  * This function will ignore the child_ids field of Dir and therefore it will not remove or add any
  * childs from a directory, even if the child_ids field in the request body does not contain all or
- * none of the directory's childs.
+ * none of the directory's childs. Read- and writeable groups are ignored in the same way.
  * The given updates will be written to the database.
  */
 pub fn update_dir_infos(dir_info: DirMsg, user_id: u64, db: &Database) -> Result<Dir, Error> {
@@ -85,7 +85,7 @@ pub fn update_dir_infos(dir_info: DirMsg, user_id: u64, db: &Database) -> Result
         })?;
 
     // Make sure the user has the necessary rights:
-    if !dir.may_write(user_id) {
+    if !dir.may_write(&db.get_user(user_id)?.ok_or(Error::BadCall)?) {
         // TODO: Logging
         println!("User tried to update a directory which he doesn't own.");
         return Err(Error::MissingAuthorization);
@@ -102,8 +102,8 @@ pub fn update_dir_infos(dir_info: DirMsg, user_id: u64, db: &Database) -> Result
 
 /**
  * Adds a file to the database.
- * The new File receives a new unique id. Other fields like name and parent_id should be given by
- * the argument `file_info`.
+ * The new File receives a new unique id. No groups will have read or write permissions on this
+ * directory. Other fields like name and parent_id should be given by the argument `file_info`.
  * If the id given by `user_id` does not correspond to a User who has the necessary rights for this
  * action (on the parent directory), an Err is retuned.
  * If a necessary field is missing, an Err is returned.
@@ -115,7 +115,7 @@ pub fn add_file(db: &Database, file_info: FileMsg, user_id: u64) -> Result<File,
         .parent_id
         .ok_or(Error::BadCall)
         .map(|p_id| db.get_dir(p_id)?.ok_or(Error::NoSuchDir))??
-        .may_write(user_id)
+        .may_write(&db.get_user(user_id)?.ok_or(Error::BadCall)?)
     {
         return Err(Error::MissingAuthorization);
     }
@@ -126,7 +126,6 @@ pub fn add_file(db: &Database, file_info: FileMsg, user_id: u64) -> Result<File,
     if let Some(n) = file_info.name {
         file_builder.set_name(n);
     }
-    file_builder.set_permissions(file_info.permissions);
     let mut new_file = file_builder.build();
 
     // Add new file:
@@ -144,7 +143,7 @@ pub fn get_file_info(file_id: u64, user_id: u64, db: &Database) -> Result<File, 
     let file = db.get_file(file_id)?.ok_or(Error::NoSuchFile)?;
 
     // Check, if the user is allowed to access the file:
-    if !file.may_read(user_id) {
+    if !file.may_read(&db.get_user(user_id)?.ok_or(Error::BadCall)?) {
         // TODO: Match against existing rules
         Err(Error::MissingAuthorization)
     } else {
@@ -155,6 +154,9 @@ pub fn get_file_info(file_id: u64, user_id: u64, db: &Database) -> Result<File, 
 /**
  * Updates the metadata of a file given by field `id` of the given `FileMsg` to the values
  * given by the not `None` fields of the same struct.
+ * This function will ignore the `read_group_ids` and `write_group_ids` fields of File and
+ * therefore it will not remove or add any readable or writeable groups from a file, even if these
+ * fields in the request body do not contain all or none of the files's groups.
  * The given updates will be written to the database.
  */
 pub fn update_file_infos(file_info: FileMsg, user_id: u64, db: &Database) -> Result<File, Error> {
@@ -168,7 +170,7 @@ pub fn update_file_infos(file_info: FileMsg, user_id: u64, db: &Database) -> Res
         })?;
 
     // Make sure the user has the necessary rights:
-    if !file.may_write(user_id) {
+    if !file.may_write(&db.get_user(user_id)?.ok_or(Error::BadCall)?) {
         // TODO: Logging
         println!("User tried to update a file which he doesn't own.");
         return Err(Error::MissingAuthorization);
@@ -200,7 +202,7 @@ pub async fn update_file_content(
     let file = db.get_file(file_id)?.ok_or(Error::NoSuchFile)?;
 
     // Check users permissions:
-    if file.may_write(user_id) {
+    if file.may_write(&db.get_user(user_id)?.ok_or(Error::BadCall)?) {
         return Err(Error::MissingAuthorization);
     }
 

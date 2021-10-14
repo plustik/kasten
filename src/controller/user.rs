@@ -74,8 +74,9 @@ pub fn add_user(user_infos: UserMsg, acting_user_id: u64, db: &Database) -> Resu
         id: 0, // Will be updated by `insert_new_dir()`
         parent_id: 0,
         owner_id: user_id,
+        read_group_ids: Vec::new(),
+        write_group_ids: Vec::new(),
         child_ids: Vec::new(),
-        permission_bits: 0x700,
         name: String::from("home"),
     };
     db.insert_new_dir(&mut root_dir)?;
