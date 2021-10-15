@@ -1,6 +1,6 @@
 use rocket::{fs::TempFile, http::Status, serde::json::Json, Route, State};
 
-use super::super::FileMsg;
+use super::super::{FileMsg, GroupMsg};
 use crate::{
     config::Config,
     controller,
@@ -10,7 +10,14 @@ use crate::{
 };
 
 pub fn get_routes() -> Vec<Route> {
-    routes![add_file, upload_file, get_file_info, update_file_infos]
+    routes![
+        add_file,
+        upload_file,
+        get_file_info,
+        update_file_infos,
+        add_read_permission,
+        add_write_permission
+    ]
 }
 
 /*
@@ -180,6 +187,139 @@ async fn upload_file(
         Err(err) => {
             // TODO: Logging
             println!("Error when updating file content: {}", err);
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
+/*
+ * Give read permissions for a given file to a given group.
+ *
+ * Add the group given by `group_id` to the list of readable groups of the file given by `file_id`.
+ * Fails with an appropriate HTTP Status, if the cookies of the request correspond to a User
+ * (building a UserSession succeeds) which does not have the necessary rights for this action.
+ * Otherwise a JSON representation of the new file is returned.
+ */
+#[post("/files/<file_id>/permissions/read", data = "<group>")]
+async fn add_read_permission(
+    file_id: Id,
+    group: Json<GroupMsg>,
+    session: UserSession,
+    db: &State<Database>,
+) -> Result<Json<File>, Status> {
+    let file_id = file_id.inner();
+    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?;
+
+    // Make sure the given file exists:
+    let mut file = match controller::get_file_info(file_id, session.user_id, db) {
+        Ok(f) => f,
+        Err(Error::NoSuchFile) => {
+            // TODO: Logging
+            println!("User tried to update permissions of nonexisting file.");
+            return Err(Status::NotFound);
+        }
+        Err(Error::MissingAuthorization) => {
+            // TODO: Logging
+            println!("User tried to update permissions of file, but wasn't allowed to.");
+            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!(
+                "Unexpected error while user tried to update permissions of file: {}",
+                e
+            );
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    match controller::add_read_permission(file_id, group_id, session.user_id, db) {
+        Ok(()) => {
+            file.read_group_ids.push(group_id);
+            Ok(Json(file))
+        }
+        Err(Error::NoSuchTarget) => {
+            // TODO: Logging
+            println!("User tried to update permissions of nonexisting file.");
+            Err(Status::NotFound)
+        }
+        Err(Error::MissingAuthorization) => {
+            // TODO: Logging
+            println!("User tried to update permissions of file, but wasn't allowed to.");
+            Err(Status::Forbidden) // Maybe Status::NotFound would be more secure?
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!(
+                "Unexpected error while user tried to update permissions of file: {}",
+                e
+            );
+            Err(Status::InternalServerError)
+        }
+    }
+}
+/*
+ * Give write permissions for a given file to a given group.
+ *
+ * Add the group given by `group_id` to the list of writeable groups of the file given by `file_id`.
+ * Fails with an appropriate HTTP Status, if the cookies of the request correspond to a User
+ * (building a UserSession succeeds) which does not have the necessary rights for this action.
+ * Otherwise a JSON representation of the new file is returned.
+ */
+#[post("/files/<file_id>/permissions/write", data = "<group>")]
+async fn add_write_permission(
+    file_id: Id,
+    group: Json<GroupMsg>,
+    session: UserSession,
+    db: &State<Database>,
+) -> Result<Json<File>, Status> {
+    let file_id = file_id.inner();
+    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?;
+
+    // Make sure the given file exists:
+    let mut file = match controller::get_file_info(file_id, session.user_id, db) {
+        Ok(f) => f,
+        Err(Error::NoSuchFile) => {
+            // TODO: Logging
+            println!("User tried to update permissions of nonexisting file.");
+            return Err(Status::NotFound);
+        }
+        Err(Error::MissingAuthorization) => {
+            // TODO: Logging
+            println!("User tried to update permissions of file, but wasn't allowed to.");
+            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!(
+                "Unexpected error while user tried to update permissions of file: {}",
+                e
+            );
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    match controller::add_write_permission(file_id, group_id, session.user_id, db) {
+        Ok(()) => {
+            file.write_group_ids.push(group_id);
+            Ok(Json(file))
+        }
+        Err(Error::NoSuchTarget) => {
+            // TODO: Logging
+            println!("User tried to update permissions of nonexisting file.");
+            Err(Status::NotFound)
+        }
+        Err(Error::MissingAuthorization) => {
+            // TODO: Logging
+            println!("User tried to update permissions of file, but wasn't allowed to.");
+            Err(Status::Forbidden) // Maybe Status::NotFound would be more secure?
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!(
+                "Unexpected error while user tried to update permissions of file: {}",
+                e
+            );
             Err(Status::InternalServerError)
         }
     }

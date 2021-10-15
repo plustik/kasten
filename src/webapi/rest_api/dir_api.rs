@@ -1,6 +1,6 @@
 use rocket::{http::Status, serde::json::Json, Route, State};
 
-use super::super::DirMsg;
+use super::super::{DirMsg, GroupMsg};
 use crate::{
     controller,
     database::Database,
@@ -9,7 +9,13 @@ use crate::{
 };
 
 pub fn get_routes() -> Vec<Route> {
-    routes![add_dir, get_dir_info, update_dir_infos,]
+    routes![
+        add_dir,
+        get_dir_info,
+        update_dir_infos,
+        add_read_permission,
+        add_write_permission
+    ]
 }
 
 /*
@@ -135,6 +141,141 @@ async fn update_dir_infos(
         Err(err) => {
             // TODO: Logging
             println!("Error when updating directory: {}", err);
+            Err(Status::InternalServerError)
+        }
+    }
+}
+
+/*
+ * Give read permissions for a given directory to a given group.
+ *
+ * Add the group given by `group_id` to the list of readable groups of the directory given by
+ * `dir_id`.
+ * Fails with an appropriate HTTP Status, if the cookies of the request correspond to a User
+ * (building a UserSession succeeds) which does not have the necessary rights for this action.
+ * Otherwise a JSON representation of the new directory is returned.
+ */
+#[post("/dirs/<dir_id>/permissions/read", data = "<group>")]
+async fn add_read_permission(
+    dir_id: Id,
+    group: Json<GroupMsg>,
+    session: UserSession,
+    db: &State<Database>,
+) -> Result<Json<Dir>, Status> {
+    let dir_id = dir_id.inner();
+    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?;
+
+    // Make sure the given dir exists:
+    let mut dir = match controller::get_dir_info(dir_id, Some(session.user_id), db) {
+        Ok(d) => d,
+        Err(Error::NoSuchDir) => {
+            // TODO: Logging
+            println!("User tried to update permissions of nonexisting directory.");
+            return Err(Status::NotFound);
+        }
+        Err(Error::MissingAuthorization) => {
+            // TODO: Logging
+            println!("User tried to update permissions of directory, but wasn't allowed to.");
+            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!(
+                "Unexpected error while user tried to update permissions of directory: {}",
+                e
+            );
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    match controller::add_read_permission(dir_id, group_id, session.user_id, db) {
+        Ok(()) => {
+            dir.read_group_ids.push(group_id);
+            Ok(Json(dir))
+        }
+        Err(Error::NoSuchTarget) => {
+            // TODO: Logging
+            println!("User tried to update permissions of nonexisting directory.");
+            Err(Status::NotFound)
+        }
+        Err(Error::MissingAuthorization) => {
+            // TODO: Logging
+            println!("User tried to update permissions of directory, but wasn't allowed to.");
+            Err(Status::Forbidden) // Maybe Status::NotFound would be more secure?
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!(
+                "Unexpected error while user tried to update permissions of directory: {}",
+                e
+            );
+            Err(Status::InternalServerError)
+        }
+    }
+}
+/*
+ * Give write permissions for a given directory to a given group.
+ *
+ * Add the group given by `group_id` to the list of writeable groups of the directory given by
+ * `dir_id`.
+ * Fails with an appropriate HTTP Status, if the cookies of the request correspond to a User
+ * (building a UserSession succeeds) which does not have the necessary rights for this action.
+ * Otherwise a JSON representation of the new directory is returned.
+ */
+#[post("/dirs/<dir_id>/permissions/write", data = "<group>")]
+async fn add_write_permission(
+    dir_id: Id,
+    group: Json<GroupMsg>,
+    session: UserSession,
+    db: &State<Database>,
+) -> Result<Json<Dir>, Status> {
+    let dir_id = dir_id.inner();
+    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?;
+
+    // Make sure the given dir exists:
+    let mut dir = match controller::get_dir_info(dir_id, Some(session.user_id), db) {
+        Ok(d) => d,
+        Err(Error::NoSuchDir) => {
+            // TODO: Logging
+            println!("User tried to update permissions of nonexisting directory.");
+            return Err(Status::NotFound);
+        }
+        Err(Error::MissingAuthorization) => {
+            // TODO: Logging
+            println!("User tried to update permissions of directory, but wasn't allowed to.");
+            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!(
+                "Unexpected error while user tried to update permissions of directory: {}",
+                e
+            );
+            return Err(Status::InternalServerError);
+        }
+    };
+
+    match controller::add_write_permission(dir_id, group_id, session.user_id, db) {
+        Ok(()) => {
+            dir.write_group_ids.push(group_id);
+            Ok(Json(dir))
+        }
+        Err(Error::NoSuchTarget) => {
+            // TODO: Logging
+            println!("User tried to update permissions of nonexisting directory.");
+            Err(Status::NotFound)
+        }
+        Err(Error::MissingAuthorization) => {
+            // TODO: Logging
+            println!("User tried to update permissions of directory, but wasn't allowed to.");
+            Err(Status::Forbidden) // Maybe Status::NotFound would be more secure?
+        }
+        Err(e) => {
+            // TODO: Logging
+            println!(
+                "Unexpected error while user tried to update permissions of directory: {}",
+                e
+            );
             Err(Status::InternalServerError)
         }
     }
