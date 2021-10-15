@@ -6,23 +6,22 @@ use sled::{transaction::ConflictableTransactionError, Db, Transactional, Tree};
 
 use crate::{
     config::Config,
-    models::{Dir, File, User, UserSession},
+    models::{Dir, File, Group, User, UserSession},
     Error,
 };
 
 mod fs_db;
 use fs_db::FsDatabase;
+mod user_db;
+use user_db::UserDatabase;
 
 pub struct Database {
     _sled_db: Db,
-    session_tree: Tree,        // K: session_id, V: user_id, creation_date
-    user_session_tree: Tree,   // K: user_id, session_id
-    username_id_tree: Tree,    // K: username, V: user_id
-    userid_name_tree: Tree,    // K: user_id, V: username
-    userid_pwd_tree: Tree,     // K: user_id, V: pwd_hash
-    userid_rootdir_tree: Tree, // K: user_id, V: dir_id
+    session_tree: Tree,      // K: session_id, V: user_id, creation_date
+    user_session_tree: Tree, // K: user_id, session_id
 
     fs_db: FsDatabase,
+    user_db: UserDatabase,
 }
 
 impl Database {
@@ -37,30 +36,16 @@ impl Database {
         let user_session_tree = sled_db
             .open_tree(b"user_sessions")
             .expect("Could not open sessions tree.");
-        let username_id_tree = sled_db
-            .open_tree(b"usernames_ids")
-            .expect("Could not open userids tree.");
-        let userid_name_tree = sled_db
-            .open_tree(b"userids_names")
-            .expect("Could not open username tree.");
-        let userid_pwd_tree = sled_db
-            .open_tree(b"userids_pwds")
-            .expect("Could not open password tree.");
-        let userid_rootdir_tree = sled_db
-            .open_tree("userid_rootdir")
-            .expect("Could not open root-dir tree.");
 
         let fs_db = FsDatabase::init(&sled_db)?;
+        let user_db = UserDatabase::init(&sled_db)?;
 
         Ok(Database {
             _sled_db: sled_db,
             session_tree,
             user_session_tree,
-            username_id_tree,
-            userid_name_tree,
-            userid_pwd_tree,
-            userid_rootdir_tree,
             fs_db,
+            user_db,
         })
     }
 
@@ -152,46 +137,55 @@ impl Database {
         Ok(Some(UserSession::new(session_id, user_id, creation_date)))
     }
 
-    pub fn get_user(&self, user_id: u64) -> sled::Result<Option<User>> {
-        let user_id_bytes = user_id.to_be_bytes();
-
-        let username = if let Some(username_bytes) = self.userid_name_tree.get(user_id_bytes)? {
-            String::from_utf8(Vec::from(username_bytes.as_ref())).unwrap()
-        } else {
-            return Ok(None);
-        };
-        let pwd_hash = if let Some(hash_bytes) = self.userid_pwd_tree.get(user_id_bytes)? {
-            String::from_utf8(Vec::from(hash_bytes.as_ref())).unwrap()
-        } else {
-            return Ok(None);
-        };
-        let root_dir_id = if let Some(dir_id_bytes) = self.userid_rootdir_tree.get(user_id_bytes)? {
-            u64::from_be_bytes(
-                dir_id_bytes
-                    .as_ref()
-                    .try_into()
-                    .expect("DB contains invalid root dir."),
-            )
-        } else {
-            return Ok(None);
-        };
-
-        Ok(Some(User {
-            id: user_id,
-            name: username,
-            pwd_hash,
-            root_dir_id,
-        }))
+    pub fn get_user(&self, user_id: u64) -> Result<Option<User>, Error> {
+        self.user_db.get_user(user_id)
     }
 
     pub fn get_userid_by_name(&self, username: &str) -> sled::Result<Option<u64>> {
-        if let Some(id_bytes) = self.username_id_tree.get(username.as_bytes())? {
-            Ok(Some(u64::from_be_bytes(
-                id_bytes.as_ref().try_into().unwrap(),
-            )))
-        } else {
-            Ok(None)
-        }
+        self.user_db.get_userid_by_name(username)
+    }
+
+    /**
+     * Adds the given User with the given fields to the database. If there is already a user with
+     * the given ID in the DB, it will be overwritten.
+     */
+    pub fn insert_user(&self, user: &User) -> Result<(), Error> {
+        self.user_db.insert_user(user)
+    }
+
+    /**
+     * Returns the Group given by the ID `group_id`. If no such group exists, `Ok(None)` is
+     * returned.
+     */
+    pub fn get_group(&self, group_id: u64) -> Result<Option<Group>, Error> {
+        self.user_db.get_group(group_id)
+    }
+
+    /**
+     * If there is a group in the DB with the name given by `groupname`, its ID is returned.
+     * Otherwise `Ok(None)` is retuned.
+     */
+    pub fn get_groupid_by_name(&self, groupname: &str) -> sled::Result<Option<u64>> {
+        self.user_db.get_groupid_by_name(groupname)
+    }
+
+    /**
+     * Adds a new Group with the given fields to the database. The ID of the given Group will be
+     * set to a new random and unique value.
+     */
+    pub fn insert_new_group(&self, group: &mut Group) -> Result<(), Error> {
+        self.user_db.insert_new_group(group)
+    }
+
+    /**
+     * Adds the given Group with the given fields to the database. If there is already a group with
+     * the given ID in the DB, it will be overwritten. If there already is a different group with
+     * the same name in the DB, `Error::TargetExists` is returned. If the given Groups number of
+     * members or admins exceeds the maximum, that can be stored in the DB (`u16::MAX`),
+     * `Error::BadCall` is returned.
+     */
+    pub fn insert_group(&self, group: &Group) -> Result<(), Error> {
+        self.user_db.insert_group(group)
     }
 
     /// Returns the File with the given ID, if it exists in the DB, or None otherwise.
@@ -214,15 +208,24 @@ impl Database {
         self.fs_db.get_dirs_by_parent(parent_id)
     }
 
-    /// Inserts a new file with the given attributes in the DB.
-    /// If no errors occour, a representation of the new file is returned.
-    pub fn insert_new_file(
-        &self,
-        parent_id: u64,
-        owner_id: u64,
-        name: &str,
-    ) -> Result<File, Error> {
-        self.fs_db.insert_new_file(parent_id, owner_id, name)
+    /**
+     * Inserts the given File into the DB.
+     * The function finds a new id for the File and updates the id field accordingly.
+     */
+    pub fn insert_new_file(&self, file: &mut File) -> Result<(), Error> {
+        self.fs_db.insert_new_file(file)?;
+        Ok(())
+    }
+
+    /**
+     * Changes the properties of the given File in the DB to the values given by the parameter
+     * `file`.
+     *
+     * Changeable properties include `name`, `owner_id` and `parent_id`. The field `id` is used to
+     * identify the file to change.
+     */
+    pub fn update_file(&self, file: &File) -> Result<(), Error> {
+        self.fs_db.update_file(file)
     }
 
     /// Removes the file with the given id from the DB and returns its representation. Returns an
@@ -231,15 +234,52 @@ impl Database {
         self.fs_db.remove_file(id)
     }
 
-    /// Inserts a new dir with the given attributes in the DB.
-    /// If no errors occour, a representation of the new dir is returned.
-    pub fn insert_new_dir(&self, parent_id: u64, owner_id: u64, name: &str) -> Result<Dir, Error> {
-        self.fs_db.insert_new_dir(parent_id, owner_id, name)
+    /**
+     * Inserts the given Dir into the DB.
+     * The function finds a new id for the Dir and updates the id field accordingly.
+     * Ids in the child_ids Vec will be ignored and not written to the DB.
+     */
+    pub fn insert_new_dir(&self, dir: &mut Dir) -> Result<(), Error> {
+        self.fs_db.insert_new_dir(dir)?;
+        Ok(())
+    }
+
+    /**
+     * Changes the properties of the given Dir in the DB to the values given by the parameter
+     * `dir`.
+     *
+     * Changeable properties include `name`, `owner_id` and `parent_id`. The field `id` is used to
+     * identify the directory to change. The field `child_ids` will be ignored.
+     */
+    pub fn update_dir(&self, dir: &Dir) -> Result<(), Error> {
+        self.fs_db.update_dir(dir)
     }
 
     /// Removes the directory with the given id from the DB and returns its representation.
     /// Returns an Error with type NoSuchDir, if there is no directory with the given id in the DB.
     pub fn remove_dir(&self, id: u64) -> Result<Dir, Error> {
         self.fs_db.remove_dir(id)
+    }
+
+    /**
+     * Adds the group Id `group_id` to the list of readable groups for the file or directory given
+     * by `fs_node_id`.
+     *
+     * If there is no entry for a FsNode with the given ID in the permission table,
+     * `Err(Error::NoSuchTarget)` is returned.
+     */
+    pub fn add_readable_group(&self, fs_node_id: u64, group_id: u64) -> Result<(), Error> {
+        self.fs_db.add_readable_group(fs_node_id, group_id)
+    }
+
+    /**
+     * Adds the group Id `group_id` to the list of writeable groups for the file or directory given
+     * by `fs_node_id`.
+     *
+     * If there is no entry for a FsNode with the given ID in the permission table,
+     * `Err(Error::NoSuchTarget)` is returned.
+     */
+    pub fn add_writeable_group(&self, fs_node_id: u64, group_id: u64) -> Result<(), Error> {
+        self.fs_db.add_writeable_group(fs_node_id, group_id)
     }
 }

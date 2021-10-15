@@ -5,8 +5,8 @@ use crate::Error;
 mod dirsystem;
 mod users;
 
-pub use dirsystem::{Dir, File, FsNode};
-pub use users::{User, UserSession};
+pub use dirsystem::{Dir, DirBuilder, File, FileBuilder, FsNode};
+pub use users::{Group, User, UserSession};
 
 pub struct Id(u64);
 

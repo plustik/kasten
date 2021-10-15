@@ -13,9 +13,12 @@ pub struct Config {
 impl Config {
     pub fn new() -> Self {
         // Read environment variables:
-        let db_location = env::var("KASTEN_DB_LOCATION").unwrap_or(String::from(DATABASE_LOCATION));
-        let file_location = env::var("KASTEN_FILE_LOCATION").unwrap_or(String::from(FILE_LOCATION));
-        let static_files = env::var("KASTEN_STATIC_FILES").unwrap_or(String::from(STATIC_FILES));
+        let db_location =
+            env::var("KASTEN_DB_LOCATION").unwrap_or_else(|_| String::from(DATABASE_LOCATION));
+        let file_location =
+            env::var("KASTEN_FILE_LOCATION").unwrap_or_else(|_| String::from(FILE_LOCATION));
+        let static_files =
+            env::var("KASTEN_STATIC_FILES").unwrap_or_else(|_| String::from(STATIC_FILES));
         Config {
             database_location: PathBuf::from(db_location),
             file_location: PathBuf::from(file_location),
