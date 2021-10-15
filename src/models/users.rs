@@ -16,6 +16,7 @@ pub struct User {
     pub group_ids: Vec<u64>,
 }
 
+#[derive(Serialize)]
 pub struct Group {
     pub id: u64,
     pub name: String,

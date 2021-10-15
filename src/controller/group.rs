@@ -36,7 +36,6 @@ pub fn add_group(group_infos: GroupMsg, user_id: u64, db: &Database) -> Result<G
     // Make sure the acting user has the necessary permissions:
     if user_id != 0 {
         // TODO: Implement permissions
-        // TODO: Implement permissions
         return Err(Error::MissingAuthorization);
     }
 
