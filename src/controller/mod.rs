@@ -214,3 +214,90 @@ pub async fn update_file_content(
     // Send file information as respose:
     Ok(file)
 }
+
+/**
+ * Give read permissions on a given FsNode to members of a given Group.
+ *
+ * Adds the Group given by `group_id` to the `readable_groups` of the File or Dir given by
+ * `fs_node_id` and writes the changed File/Dir to the DB.
+ *
+ * If there is no file or dir with the given ID in the DB, `Err(Error::NoSuchTarget)` is returned.
+ * If there is no group with the given ID in the DB, `Err(Error::NoSuchTarget)` is retuned.
+ * If the user given by `user_id` does not have the necessary permission to change the permissions
+ * of the given FsNode, `Err(Error::MissingAuthorization)` is retuned.
+ *
+ * This function is not thread-save. If a group is removed in parallel to calling this funciton
+ * with the groups ID, the DB may get in a state, where there is the ID of the nonexisting group in
+ * the list of readable groups. This may be a problem, if a new group with the same ID is added
+ * afterwards.
+ */
+pub fn add_read_permission(
+    fs_node_id: u64,
+    group_id: u64,
+    user_id: u64,
+    db: &Database,
+) -> Result<(), Error> {
+    // TODO: Return different Errors when FsNode or Group does not exists. (Maybe add ID field to
+    // NoSuchTarget)
+
+    // Make sure the group exists:
+    db.get_group(group_id)?.ok_or(Error::NoSuchTarget)?;
+
+    // Make sure the FsNode exists and the user has the permission to change its permissions:
+    if let Some(file) = db.get_file(fs_node_id)? {
+        if file.owner_id() != user_id {
+            return Err(Error::MissingAuthorization);
+        }
+    } else if let Some(dir) = db.get_dir(fs_node_id)? {
+        if dir.owner_id() != user_id {
+            return Err(Error::MissingAuthorization);
+        }
+    } else {
+        return Err(Error::NoSuchTarget);
+    }
+
+    db.add_readable_group(fs_node_id, group_id)
+}
+/**
+ * Give write permissions on a given FsNode to members of a given Group.
+ *
+ * Adds the Group given by `group_id` to the `writeable_groups` of the File or Dir given by
+ * `fs_node_id` and writes the changed File/Dir to the DB.
+ *
+ * If there is no file or dir with the given ID in the DB, `Err(Error::NoSuchTarget)` is returned.
+ * If there is no group with the given ID in the DB, `Err(Error::NoSuchTarget)` is retuned.
+ * If the user given by `user_id` does not have the necessary permission to change the permissions
+ * of the given FsNode, `Err(Error::MissingAuthorization)` is retuned.
+ *
+ * This function is not thread-save. If a group is removed in parallel to calling this funciton
+ * with the groups ID, the DB may get in a state, where there is the ID of the nonexisting group in
+ * the list of writeable groups. This may be a problem, if a new group with the same ID is added
+ * afterwards.
+ */
+pub fn add_write_permission(
+    fs_node_id: u64,
+    group_id: u64,
+    user_id: u64,
+    db: &Database,
+) -> Result<(), Error> {
+    // TODO: Return different Errors when FsNode or Group does not exists. (Maybe add ID field to
+    // NoSuchTarget)
+
+    // Make sure the group exists:
+    db.get_group(group_id)?.ok_or(Error::NoSuchTarget)?;
+
+    // Make sure the FsNode exists and the user has the permission to change its permissions:
+    if let Some(file) = db.get_file(fs_node_id)? {
+        if file.owner_id() != user_id {
+            return Err(Error::MissingAuthorization);
+        }
+    } else if let Some(dir) = db.get_dir(fs_node_id)? {
+        if dir.owner_id() != user_id {
+            return Err(Error::MissingAuthorization);
+        }
+    } else {
+        return Err(Error::NoSuchTarget);
+    }
+
+    db.add_writeable_group(fs_node_id, group_id)
+}

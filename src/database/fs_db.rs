@@ -407,8 +407,10 @@ impl FsDatabase {
         Ok(())
     }
 
-    /// Removes the directory with the given id from the DB and returns its representation.
-    /// Returns an Error with type NoSuchDir, if there is no directory with the given id in the DB.
+    /**
+     * Removes the directory with the given id from the DB and returns its representation.
+     * Returns an Error with type NoSuchDir, if there is no directory with the given id in the DB.
+     */
     pub fn remove_dir(&self, id: u64) -> Result<Dir, Error> {
         // Return an Err, if it is the root dir of an user:
         if let Some(b) = self.dir_tree.get(id.to_be_bytes())? {
@@ -490,7 +492,80 @@ impl FsDatabase {
 
         Ok(res)
     }
+
+    /**
+     * Adds the group Id `group_id` to the list of readable groups for the file or directory given
+     * by `fs_node_id`.
+     *
+     * If there is no entry for a FsNode with the given ID in the permission table,
+     * `Err(Error::NoSuchTarget)` is returned.
+     */
+    pub fn add_readable_group(&self, fs_node_id: u64, group_id: u64) -> Result<(), Error> {
+        self.permissions_tree
+            .transaction(|perm_t| {
+                let old_bytes = perm_t
+                    .get(&fs_node_id.to_be_bytes())?
+                    .ok_or(ConflictableTransactionError::Abort(Error::NoSuchTarget))?;
+                let mut new_bytes = Vec::with_capacity(old_bytes.len());
+                // Increase number of IDs:
+                let new_len = 1 + u16::from_be_bytes(old_bytes[..2].try_into().unwrap()); // TODO: Handle overflow
+                new_bytes.extend_from_slice(&new_len.to_be_bytes());
+                let second_list_start: usize =
+                    (2 + u16::from_be_bytes(old_bytes[..2].try_into().unwrap()) * 8)
+                        .try_into()
+                        .unwrap();
+                new_bytes.extend_from_slice(&old_bytes[2..second_list_start]);
+                // Append new ID:
+                new_bytes.extend_from_slice(&group_id.to_be_bytes());
+                new_bytes.extend_from_slice(&old_bytes[second_list_start..]);
+                // Write changes:
+                perm_t.insert(&fs_node_id.to_be_bytes(), new_bytes.as_slice())?;
+
+                Ok(())
+            })
+            .map_err(Error::from)
+    }
+
+    /**
+     * Adds the group Id `group_id` to the list of writeable groups for the file or directory given
+     * by `fs_node_id`.
+     *
+     * If there is no entry for a FsNode with the given ID in the permission table,
+     * `Err(Error::NoSuchTarget)` is returned.
+     */
+    pub fn add_writeable_group(&self, fs_node_id: u64, group_id: u64) -> Result<(), Error> {
+        self.permissions_tree
+            .transaction(|perm_t| {
+                let old_bytes = perm_t
+                    .get(&fs_node_id.to_be_bytes())?
+                    .ok_or(ConflictableTransactionError::Abort(Error::NoSuchTarget))?;
+                let mut new_bytes = Vec::from(old_bytes.as_ref());
+                // Increase number of IDs:
+                let second_list_start: usize =
+                    (2 + u16::from_be_bytes(old_bytes[..2].try_into().unwrap()) * 8)
+                        .try_into()
+                        .unwrap();
+                let new_len = 1 + u16::from_be_bytes(
+                    old_bytes[second_list_start..(second_list_start + 2)]
+                        .try_into()
+                        .unwrap(),
+                ); // TODO: Handle overflow
+                new_bytes[second_list_start] = new_len.to_be_bytes()[0];
+                new_bytes[second_list_start + 1] = new_len.to_be_bytes()[1];
+                // Append new ID:
+                new_bytes.extend_from_slice(&group_id.to_be_bytes());
+                // Write changes:
+                perm_t.insert(&fs_node_id.to_be_bytes(), new_bytes.as_slice())?;
+
+                Ok(())
+            })
+            .map_err(Error::from)
+    }
 }
+
+//
+// Helper functions for serialization and deserialization:
+//
 
 fn parse_read_group_ids(bytes: &[u8]) -> Vec<u64> {
     parse_id_list(bytes)

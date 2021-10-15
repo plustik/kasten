@@ -260,4 +260,26 @@ impl Database {
     pub fn remove_dir(&self, id: u64) -> Result<Dir, Error> {
         self.fs_db.remove_dir(id)
     }
+
+    /**
+     * Adds the group Id `group_id` to the list of readable groups for the file or directory given
+     * by `fs_node_id`.
+     *
+     * If there is no entry for a FsNode with the given ID in the permission table,
+     * `Err(Error::NoSuchTarget)` is returned.
+     */
+    pub fn add_readable_group(&self, fs_node_id: u64, group_id: u64) -> Result<(), Error> {
+        self.fs_db.add_readable_group(fs_node_id, group_id)
+    }
+
+    /**
+     * Adds the group Id `group_id` to the list of writeable groups for the file or directory given
+     * by `fs_node_id`.
+     *
+     * If there is no entry for a FsNode with the given ID in the permission table,
+     * `Err(Error::NoSuchTarget)` is returned.
+     */
+    pub fn add_writeable_group(&self, fs_node_id: u64, group_id: u64) -> Result<(), Error> {
+        self.fs_db.add_writeable_group(fs_node_id, group_id)
+    }
 }
