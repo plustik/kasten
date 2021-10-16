@@ -27,7 +27,7 @@ pub trait FsNode {
                 return true;
             }
         }
-        return false;
+        false
     }
     fn may_write(&self, user: &User) -> bool {
         if self.owner_id() == user.id {
@@ -38,7 +38,7 @@ pub trait FsNode {
                 return true;
             }
         }
-        return false;
+        false
     }
 }
 
@@ -185,18 +185,6 @@ impl DirBuilder {
 
     pub fn build(self) -> Dir {
         self.dir
-    }
-
-    pub fn set_id(&mut self, id: u64) {
-        self.dir.id = id;
-    }
-
-    pub fn set_parent_id(&mut self, parent_id: u64) {
-        self.dir.parent_id = parent_id;
-    }
-
-    pub fn set_owner_id(&mut self, owner_id: u64) {
-        self.dir.owner_id = owner_id;
     }
 
     pub fn set_name<T: Into<String>>(&mut self, name: T) {

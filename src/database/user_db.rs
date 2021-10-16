@@ -177,7 +177,7 @@ impl UserDatabase {
                 admin_ids,
             }))
         } else {
-            return Ok(None);
+            Ok(None)
         }
     }
 
@@ -254,7 +254,7 @@ impl UserDatabase {
                     let mut group_list_bytes: Vec<u8> = Vec::from(
                         user_g_t
                             .get(&user_id.to_be_bytes())?
-                            .unwrap_or(IVec::from(&[]))
+                            .unwrap_or_else(|| IVec::from(&[]))
                             .as_ref(),
                     );
                     // Make sure the user is not already in the list:
@@ -329,7 +329,7 @@ impl UserDatabase {
                     let mut group_list_bytes: Vec<u8> = Vec::from(
                         user_g_t
                             .get(&user_id.to_be_bytes())?
-                            .unwrap_or(IVec::from(&[]))
+                            .unwrap_or_else(|| IVec::from(&[]))
                             .as_ref(),
                     );
                     // Make sure the user is not already in the list:
