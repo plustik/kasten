@@ -172,7 +172,7 @@ impl UserMsg {
             let salt = SaltString::generate(&mut rng);
             let argon2 = Argon2::default();
             user.pwd_hash = argon2
-                .hash_password_simple(pwd_bytes, salt.as_ref())
+                .hash_password(pwd_bytes, salt.as_ref())
                 .expect("Could not hash password.")
                 .to_string();
         }

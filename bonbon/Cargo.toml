@@ -5,7 +5,7 @@ authors = ["Simeon Ricking <simeon.ricking@posteo.de>"]
 edition = "2018"
 
 [dependencies]
-argon2 = "0.1"
+argon2 = ">=0.3"
 rand = "0.8"
 sled = "0.34"
 

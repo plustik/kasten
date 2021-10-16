@@ -62,7 +62,7 @@ pub fn useradd(args: Vec<String>) {
     let salt = SaltString::generate(&mut rng);
     let argon2 = Argon2::default();
     let password_hash = argon2
-        .hash_password_simple(password, salt.as_ref())
+        .hash_password(password, salt.as_ref())
         .expect("Could not hash password.")
         .to_string();
 
