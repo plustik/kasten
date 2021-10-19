@@ -122,7 +122,7 @@ impl FileBuilder {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Dir {
     pub id: u64,

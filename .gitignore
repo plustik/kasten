@@ -6,3 +6,5 @@
 /test-env
 /var
 CHANGELOG
+/test-webpage
+*.bak

@@ -1,145 +1,275 @@
-
-* {
-	box-sizing: border-box;
-}
-
 body {
-	padding: 10px;
-	background-color: #282828;
+	font-family: sans-serif;
+	font-size: small;
+	border: solid #d9d8d1;
+	border-width: 1px;
+	margin: 10px;
+	background-color: #ffffff;
+	color: #000000;
 }
 
-nav {
-	overflow: hidden;
-	margin-bottom: 10px;
-	background-color: #82c07c;
-	display: flex;
-	justify-content: center;
-	align-items: center;
+a, a:hover, a:visited, a:active {
+	color: #000000;
 }
 
-#nav-brand, #nav-username, #nav-logout {
-	display: block;
-	color: #1d2021;
-	text-align: center;
-	padding: 14px 16px;
-	text-decoration: none;
-}
-#nav-brand {
-	font-size: 1.5rem;
-	font-weight: 600;
-	margin-right: auto;
-}
-#nav-logout, #nav-username {
-	margin: 0;
+a[href] {
+	color: #0000cc;
 }
 
-main {
-	padding: 10px;
-	background-color: #1d2021;
-	color: #fbf1c7;
+a[href]:hover, a[href]:visited, a[href]:active {
+	color: #880000;
 }
 
-
-.dir-head {
-	padding: 5px;
-	align-items: center;
-	display: flex;
-	justify-content: flex-start;
+span.cntrl {
+	border: dashed #aaaaaa;
+	border-width: 1px;
+	padding: 0px 2px 0px 2px;
+	margin:  0px 2px 0px 2px;
 }
 
-#dir-location-path {
-	font-size: 1.5em;
-	align-items: center;
-	margin: 0px;
-	padding-bottom: 0px;
+img.logo, span.logo {
+	float: right;
+	border-width: 0px;
 }
 
-#dir-add-menu, .dir-action-menu, .file-action-menu {
-	position: relative;
-	padding: 0;
-	margin-right: auto;
+img.avatar {
+	vertical-align: middle;
 }
 
-#dir-add-btn, .dir-action-btn, .file-action-btn {
-	color: #fe8019;
-	cursor: pointer;
-}
-#dir-add-btn {
-	font-size: 1.5em;
-	font-weight: 1000;
-}
-.dir-action-btn, .file-action-btn {
-	font-size: 0.9em;
-	font-weight: 500;
-}
-#dir-add-btn:hover, .dir-action-btn:hover, .file-action-btn:hover {
-	color: #fbf1c7;
+img.blob {
+	max-height: 100%;
+	max-width: 100%;
 }
 
-#dir-add-drop, .dir-action-drop, .file-action-drop {
-	z-index: 20;
-	min-width: 100%;
-	position: absolute;
-	top: 0;
-	left: 100%;
-	background-color: #3c3836;
-	border-radius: 4px;
+div.header, div.title {
+	clear: both;
+}
+
+a.list img.avatar {
+	border-style: none;
+}
+
+div.page_header {
+	height: 1.3em;
+	padding: 8px;
+	font-size: 150%;
+	font-weight: bold;
+	background-color: #d9d8d1;
+}
+
+div.page_header a:visited, a.header {
+	color: #0000cc;
+}
+
+div.page_header a:hover {
+	color: #880000;
+}
+
+div.page_nav, div.page_nav_trailer {
 	padding: 8px;
 }
-.drop-item {
-	color: #fbf1c7;
-	font-size: 1.2em;
-	padding: 5px 2px;
-	cursor: pointer;
+
+div.page_nav a:visited, div.page_nav_trailer a:visited {
+	color: #0000cc;
 }
 
-
-.dir-item, .dir-name, .dir-name:visited {
-	font-weight: 500;
-	color: #b8bb26;
-}
-.dir-name:hover, .dir-name:active {
-	color: #d3869b;
-}
-.file-item, .file-name, .file-name:visited {
-	font-weight: 500;
-	color: #83a598;
-}
-.file-name:hover, .file-name:active {
-	color: #fabd2f;
+div.dir_attributes {
+	padding: 8px;
+	font-weight: bold;
+	border: solid #d9d8d1;
+	border-width: 0px 0px 1px;
 }
 
-
-#main-title {
-	margin-left: 5px;
+div.page_footer {
+	height: 1.5em;
+	line-height: 1.5em;
+	padding: 4px 8px;
+	background-color: #d9d8d1;
 }
 
-#warning-title {
-	margin: 10px;
-	color: #fe8019;
+div.page_footer_text {
+	float: left;
+	color: #555555;
+	font-style: italic;
 }
 
-.form-pair {
-	margin: 10px;
+div.page_body {
+	padding: 8px;
+	font-family: monospace;
 }
 
-.form-btn {
-	margin: 10px;
+div.title, span.title {
+	padding: 6px 8px;
+}
+
+div.title, a.title, span.title {
+	font-weight: bold;
+	background-color: #edece6;
+	text-decoration: none;
+	color: #000000;
+}
+
+span.title {
+	position: relative;
+	z-index: 0;
+}
+
+a.cover {
+	position: absolute;
+	z-index: -1;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+}
+
+span.title a.title {
 	background-color: inherit;
-	color: #fe8019;
-	border: 0 none #f00;
-	cursor: pointer;
-	font-size: 1.3em;
-	font-weight: 500;
-}
-.form-btn:hover, form-btn:active {
-	color: #fbf1c7;
+	text-decoration: inherit;
 }
 
-.text-field {
-	background-color: #fbf1c7;
-	color: #1d2021;
-	border: 3px solid #fabd2f;
-	margin-top: 5px;
-	padding: 5px;
+span.title {
+	display: block;
+}
+
+a.list {
+	text-decoration: none;
+	color: #000000;
+}
+
+a.list:hover {
+	text-decoration: underline;
+	color: #880000;
+}
+
+table {
+	padding: 8px 4px;
+	border-spacing: 0;
+}
+
+table.blame {
+	border-collapse: collapse;
+}
+
+table.blame td {
+	padding: 0px 5px;
+	font-size: 100%;
+	vertical-align: top;
+}
+
+th {
+	padding: 2px 5px;
+	font-size: 100%;
+	text-align: left;
+}
+
+/* do not change row style on hover for 'blame' view */
+tr.light,
+table.blame .light:hover {
+	background-color: #ffffff;
+}
+
+tr.dark,
+table.blame .dark:hover {
+	background-color: #f6f6f0;
+}
+
+/* currently both use the same, but it can change */
+tr.light:hover,
+tr.dark:hover {
+	background-color: #edece6;
+}
+
+/* boundary commits in 'blame' view */
+/* and commits without "previous" */
+tr.boundary td.sha1,
+tr.no-previous td.linenr {
+	font-weight: bold;
+}
+
+/* for 'blame_incremental', during processing */
+tr.color1 { background-color: #f6fff6; }
+tr.color2 { background-color: #f6f6ff; }
+tr.color3 { background-color: #fff6f6; }
+
+td {
+	padding: 2px 5px;
+	font-size: 100%;
+	vertical-align: top;
+}
+
+td.link, td.selflink {
+	padding: 2px 5px;
+	font-family: sans-serif;
+	font-size: 70%;
+}
+
+td.selflink {
+	padding-right: 0px;
+}
+
+td.sha1 {
+	font-family: monospace;
+}
+
+.error {
+	color: red;
+	background-color: yellow;
+}
+
+td.current_head {
+	text-decoration: underline;
+}
+
+td.category {
+	background-color: #d9d8d1;
+	border-top: 1px solid #000000;
+	border-left: 1px solid #000000;
+	font-weight: bold;
+}
+
+table.diff_tree span.file_status.new {
+	color: #008000;
+}
+
+table.diff_tree span.file_status.deleted {
+	color: #c00000;
+}
+
+table.diff_tree span.file_status.moved,
+table.diff_tree span.file_status.mode_chnge {
+	color: #777777;
+}
+
+table.diff_tree span.file_status.copied {
+  color: #70a070;
+}
+
+td.pre, div.pre {
+	font-family: monospace;
+	font-size: 12px;
+}
+
+div.pre {
+	white-space: pre-wrap;
+	word-wrap: break-word;
+}
+
+div.pre {
+	padding-left: 5.5ex !important;
+	text-indent: -5.5ex;
+}
+
+td.pre {
+	white-space: pre-wrap;
+}
+
+td.mode {
+	font-family: monospace;
+}
+
+/* format of (optional) objects size in 'tree' view */
+td.size {
+	font-family: monospace;
+	text-align: right;
 }

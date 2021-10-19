@@ -30,6 +30,21 @@ pub fn get_user_info(
 }
 
 /**
+ * If the function given by `permission_check` returns `Ok(_)`, the name of the user given by
+ * `user_id` is returned.
+ */
+pub fn resolve_user_name<F, T>(
+    user_id: u64,
+    permission_check: F,
+    db: &Database,
+) -> Result<String, Error>
+where
+    F: FnOnce() -> Result<T, Error>,
+{
+    permission_check().and_then(|_| Ok(db.get_user(user_id)?.ok_or(Error::NoSuchTarget)?.name))
+}
+
+/**
  * If the user given by `acting_user_id` has the rights necessary to add a new user, the user
  * with the attrtbutes given by user_infos is added to the DB. If some necessary attributes are
  * missing, `Error::BadCall` is returned. If the given name allready exists in the DB,

@@ -4,7 +4,7 @@ use super::super::GroupMsg;
 use crate::{
     controller,
     database::Database,
-    models::{Id, Group, UserSession},
+    models::{Group, Id, UserSession},
     Error,
 };
 

@@ -47,7 +47,7 @@ To get a list of available commands run `./target/release/bonbon --help`.
 ## TODO
 - File encryption
 - Removing files/directories
-- Adding access rights
+- Logging
 
 
 ## Contact
