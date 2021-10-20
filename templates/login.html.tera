@@ -1,35 +1,47 @@
-
+<!DOCTYPE html>
+<html>
 <head>
-    <title>Kasten</title>
-
-    <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8">
+  <title>Kasten - Login</title>
+  <link rel="stylesheet" type="text/css" href="/static/login_style.css"/>
 </head>
-
-<body>
-
-  <nav>
-    <div id="nav-brand">Kasten</div>
-  </nav>
-
-  <main>
-
-	<h3 id="main-title">Login</h3>
-	{% if WARNING %}
+<body><span class="body">
+  <div class="page_header">
+    <span class="logo-container"><span class="logo-default">
+      <a class="logo-link" href="index.html" title="Kasten"><span class="logo" height="27" width="72">Kasten</span></a>
+    </span></span>
+    <span style="display:none">&#160;</span>
+    <span class="banner-container">
+      <span>Login</span>
+    </span>
+  </div>
+  {% if WARNING %}
+  <div class="msg_area">
+    <div class="msg_box">
+      <span>{{ WARNING }}</span>
 	<div>
-		<h4 id="warning-title">{{ WARNING }}</h4>
-	</div>
-	{% endif %}
-	<form action="/login.html" method="POST">
-	  <div class="form-pair">
-		<label for="username">Username:</label><br>
-		<input class="text-field" type="text" id="username" name="username" placeholder="Username" required autofocus><br>
-	  </div>
-	  <div class="form-pair">
-		<label for="password">Password:</label><br>
-		<input class="text-field" type="password" id="password" name="password" placeholder="Password" required><br>
-	  </div>
-	  <input class="form-btn" type="submit" value="Login">
-	</form>
-
-  </main>
-</body>
+  {% endif %}
+    </div>
+  </div>
+  <div class="login_area">
+    <div class="login_box">
+      <form action="/login.html" method="POST">
+        <div class="form-pair">
+          <label class="form-field-label" for="username">Username:</label><br>
+          <input class="text-field" type="text" id="username" name="username" placeholder="Username" required autofocus><br>
+        </div>
+        <div class="form-pair">
+          <label class="form-field-label" for="password">Password:</label><br>
+          <input class="text-field" type="password" id="password" name="password" placeholder="Password" required><br>
+        </div>
+        <div class="form-btn-container">
+          <input class="form-btn" type="submit" value="Login">
+        </div>
+      </form>
+    </div>
+  </div>
+  <div class="page_footer">
+    <div class="page_footer_text">Kasten: <a href="https://github.com/plustik/kasten">Github</a></div>
+  </div>
+</span></body>
+</html>

@@ -1,0 +1,314 @@
+body {
+	font-family: sans-serif;
+	font-size: small;
+	border: solid #d9d8d1;
+	border-width: 1px;
+	margin: 10px;
+	background-color: #ffffff;
+	color: #000000;
+}
+
+a, a:hover, a:visited, a:active {
+	color: #000000;
+}
+
+a[href] {
+	color: #0000cc;
+}
+
+a[href]:hover, a[href]:visited, a[href]:active {
+	color: #880000;
+}
+
+span.cntrl {
+	border: dashed #aaaaaa;
+	border-width: 1px;
+	padding: 0px 2px 0px 2px;
+	margin:  0px 2px 0px 2px;
+}
+
+img.logo, span.logo {
+	float: right;
+	border-width: 0px;
+}
+
+img.avatar {
+	vertical-align: middle;
+}
+
+img.blob {
+	max-height: 100%;
+	max-width: 100%;
+}
+
+a.list img.avatar {
+	border-style: none;
+}
+
+div.page_header {
+	height: 1.3em;
+	padding: 8px;
+	font-size: 150%;
+	font-weight: bold;
+	background-color: #d9d8d1;
+}
+
+div.page_header a:visited {
+	color: #0000cc;
+}
+
+div.page_header a:hover {
+	color: #880000;
+}
+
+div.page_nav, div.page_nav_trailer {
+	padding: 8px;
+}
+
+div.page_nav a:visited, div.page_nav_trailer a:visited {
+	color: #0000cc;
+}
+
+div.dir_attributes {
+	padding: 8px;
+	font-weight: bold;
+	border: solid #d9d8d1;
+	border-width: 0px 0px 1px;
+}
+
+div.page_footer {
+	height: 1.5em;
+	line-height: 1.5em;
+	padding: 4px 8px;
+	background-color: #d9d8d1;
+}
+
+div.page_footer_text {
+	float: left;
+	color: #555555;
+	font-style: italic;
+}
+
+div.page_body {
+	padding: 8px;
+	font-family: monospace;
+}
+
+a.cover {
+	position: absolute;
+	z-index: -1;
+	top: 0;
+	left: 0;
+	bottom: 0;
+	right: 0;
+}
+
+a.list {
+	text-decoration: none;
+	color: #000000;
+}
+
+a.list:hover {
+	text-decoration: underline;
+	color: #880000;
+}
+
+table {
+	padding: 8px 4px;
+	border-spacing: 0;
+}
+
+table.blame {
+	border-collapse: collapse;
+}
+
+table.blame td {
+	padding: 0px 5px;
+	font-size: 100%;
+	vertical-align: top;
+}
+
+th {
+	padding: 2px 5px;
+	font-size: 100%;
+	text-align: left;
+}
+
+/* do not change row style on hover for 'blame' view */
+tr.light,
+table.blame .light:hover {
+	background-color: #ffffff;
+}
+
+tr.dark,
+table.blame .dark:hover {
+	background-color: #f6f6f0;
+}
+
+/* currently both use the same, but it can change */
+tr.light:hover,
+tr.dark:hover {
+	background-color: #edece6;
+}
+
+/* boundary commits in 'blame' view */
+/* and commits without "previous" */
+tr.boundary td.sha1,
+tr.no-previous td.linenr {
+	font-weight: bold;
+}
+
+/* for 'blame_incremental', during processing */
+tr.color1 { background-color: #f6fff6; }
+tr.color2 { background-color: #f6f6ff; }
+tr.color3 { background-color: #fff6f6; }
+
+td {
+	padding: 2px 5px;
+	font-size: 100%;
+	vertical-align: top;
+}
+
+td.link, td.selflink {
+	padding: 2px 5px;
+	font-family: sans-serif;
+	font-size: 70%;
+}
+
+td.selflink {
+	padding-right: 0px;
+}
+
+td.sha1 {
+	font-family: monospace;
+}
+
+.error {
+	color: red;
+	background-color: yellow;
+}
+
+td.current_head {
+	text-decoration: underline;
+}
+
+td.category {
+	background-color: #d9d8d1;
+	border-top: 1px solid #000000;
+	border-left: 1px solid #000000;
+	font-weight: bold;
+}
+
+table.diff_tree span.file_status.new {
+	color: #008000;
+}
+
+table.diff_tree span.file_status.deleted {
+	color: #c00000;
+}
+
+table.diff_tree span.file_status.moved,
+table.diff_tree span.file_status.mode_chnge {
+	color: #777777;
+}
+
+table.diff_tree span.file_status.copied {
+  color: #70a070;
+}
+
+td.pre, div.pre {
+	font-family: monospace;
+	font-size: 12px;
+}
+
+div.pre {
+	white-space: pre-wrap;
+	word-wrap: break-word;
+}
+
+div.pre {
+	padding-left: 5.5ex !important;
+	text-indent: -5.5ex;
+}
+
+td.pre {
+	white-space: pre-wrap;
+}
+
+td.mode {
+	font-family: monospace;
+}
+
+/* format of (optional) objects size in 'tree' view */
+td.size {
+	font-family: monospace;
+	text-align: right;
+}
+
+div.msg_area {
+	clear: both;
+}
+
+div.msg_box {
+	padding: 12px 16px;
+	margin: 12px auto;
+	width: max-content;
+	font-weight: bold;
+	background-color: #edece6;
+	text-decoration: none;
+	color: #880000;
+	display: block;
+}
+
+div.login_area {
+	clear: both;
+}
+
+div.login_box {
+	padding: 12px 16px;
+	margin: 12px auto;
+	width: max-content;
+	font-weight: bold;
+	background-color: #edece6;
+	text-decoration: none;
+	color: #000000;
+	display: block;
+}
+
+div.form-pair {
+	box-sizing: border-box;
+	margin: 10px;
+}
+
+input.text-field {
+	box-sizing: border-box;
+	margin-top: 0.1em;
+	padding: 0.3em;
+	border-style: solid;
+	border-width: thin;
+	border-color: black;
+	border-radius: 0px;
+}
+
+div.form-btn-container {
+	box-sizing: border-box;
+	margin: 2em 10px;
+	padding: 0px;
+}
+
+input.form-btn {
+	box-sizing: border-box;
+	width: 100%;
+	margin: 0px;
+	padding: 0.4em;
+	background-color: #d9d8d1;
+	color: #0000cc;
+	font-weight: bold;
+	border-style: solid;
+	border-width: thin;
+	border-color: black;
+}
+input.form-btn:hover {
+	color: #880000;
+	background-color: #c9c8c1;
+}
