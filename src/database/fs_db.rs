@@ -22,7 +22,7 @@ impl FsDatabase {
             .expect("Could not open file tree.");
         let dir_tree = sled_db
             .open_tree("dirs")
-            .expect("Could not open fs-childs tree.");
+            .expect("Could not open dirs tree.");
         let permissions_tree = sled_db
             .open_tree("fs_node_permissions")
             .expect("Could not open fs-node-permissions tree.");
