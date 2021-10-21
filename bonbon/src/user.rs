@@ -35,12 +35,20 @@ pub fn useradd(args: Vec<String>) {
     let userid_rootdir_tree = sled_db
         .open_tree(b"userid_rootdir")
         .expect("Could not open root dir tree.");
+
+    let user_groups_tree = sled_db
+        .open_tree("user_groups")
+        .expect("Could not open user_groups tree.");
+
     let dir_tree = sled_db
         .open_tree(b"dirs")
         .expect("Could not open directory tree.");
     let file_tree = sled_db
         .open_tree(b"files")
         .expect("Could not open file tree.");
+    let permissions_tree = sled_db
+        .open_tree("fs_node_permissions")
+        .expect("Could not open fs-node-permissions tree.");
 
     // Check if username allready exists:
     let username = args[3].as_bytes();
@@ -99,12 +107,14 @@ pub fn useradd(args: Vec<String>) {
     dir_bytes.extend_from_slice(b"home");
 
     // Insert values into trees in a single transaction:
-    (&username_id_tree, &userid_name_tree, &userid_pwd_tree, &userid_rootdir_tree, &dir_tree).transaction(|(id_tt, name_tt, pwd_tt, root_tt, dir_tt)| -> ConflictableTransactionResult<(), UnabortableTransactionError> {
-        id_tt.insert(username, &user_id)?;
-        name_tt.insert(&user_id, username)?;
-        pwd_tt.insert(&user_id, password_hash.as_bytes())?;
-        root_tt.insert(&user_id, &dir_id.to_be_bytes())?;
-        dir_tt.insert(&dir_id.to_be_bytes(), dir_bytes.as_slice())?;
+    (&username_id_tree, &userid_name_tree, &userid_pwd_tree, &userid_rootdir_tree, &user_groups_tree, &dir_tree, &permissions_tree).transaction(|(id_t, name_t, pwd_t, root_t, groups_t, dir_t, perm_t)| -> ConflictableTransactionResult<(), UnabortableTransactionError> {
+        id_t.insert(username, &user_id)?;
+        name_t.insert(&user_id, username)?;
+        pwd_t.insert(&user_id, password_hash.as_bytes())?;
+        root_t.insert(&user_id, &dir_id.to_be_bytes())?;
+        groups_t.insert(&user_id, &[])?;
+        dir_t.insert(&dir_id.to_be_bytes(), dir_bytes.as_slice())?;
+        perm_t.insert(&dir_id.to_be_bytes(), &[0u8, 0u8, 0u8, 0u8])?;
         Ok(())
     }).expect("Could not apply transaction.");
 }
