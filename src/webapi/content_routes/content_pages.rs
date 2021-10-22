@@ -10,7 +10,7 @@ use crate::{
     Error,
 };
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 struct DirContext {
     id: u64,
     name: String,

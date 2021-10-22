@@ -609,7 +609,7 @@ fn entry_to_dir_incomplete(id: u64, bytes: &[u8]) -> Dir {
         ));
     }
 
-    let name = String::from_utf8(Vec::from(&bytes[(20 + child_number * 8)..]))
+    let name = String::from_utf8(Vec::from(&bytes[(18 + child_number * 8)..]))
         .expect("DB contained Dir with non-UTF-8 name.");
 
     Dir {

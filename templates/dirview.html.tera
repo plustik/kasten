@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>Kasten - {{ PATH_NODES[0] }}</title>
-  <link rel="stylesheet" type="text/css" href="style.css"/>
+  <link rel="stylesheet" type="text/css" href="/static/style.css"/>
 </head>
 <body><span class="body">
   <div class="page_header">
@@ -12,13 +12,13 @@
     </span></span>
     <span style="display:none">&#160;</span>
     <span class="banner-container">
-      <a href="/users/{{ USERID | tohex }}/view.html">{{ USERNAME }}</a>
-      <span class="slssep">&#160;/&#160;</span>
+      <a href="/users/{{ USERID | tohex }}/view.html">{{ USERNAME }}</a>:
+      <span class="slssep">/</span>
       {% set reversed_nodes = PATH_NODES | reverse %}
-      /{% for node in reversed_nodes %}
+      {% for node in reversed_nodes %}
       <a href="/dirs/{{ node.id | tohex }}/view.html">{{ node.name }}</a>
-      <span class="slssep">&#160;/&#160;</span>
-      /{% endfor %}
+      <span class="slssep">/</span>
+      {% endfor %}
     </span>
   </div>
   <div class="page_nav">
@@ -32,16 +32,16 @@
   <div class="dir_attributes">
     <span class="attribute">Owner: </span><a href="/user/{{ OWNERNAME }}/view.html" title="owner">{{ OWNERNAME }}</a><br/>
     <span class="attribute">Readable: </span>
-    /{% for group in READABLE_GROUPS %}
+    {% for group in READABLE_GROUPS %}
     <a href="groups/{{ group.id | tohex }}/view.html" title="group">{{ group.name }}</a>
     <span class="barsep">&#160;|&#160;</span>
-    /{% endfor %}
+    {% endfor %}
     <br/>
     <span class="attribute">Writeable: </span>
-    /{% for group in WRITEABLE_GROUPS %}
+    {% for group in WRITEABLE_GROUPS %}
     <a href="groups/{{ group.id | tohex }}/view.html" title="group">{{ group.name }}</a>
     <span class="barsep">&#160;|&#160;</span>
-    /{% endfor %}
+    {% endfor %}
     <br/>
   </div>
 
