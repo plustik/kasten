@@ -84,8 +84,7 @@ impl UserDatabase {
         };
         let mut group_ids = Vec::new();
         if let Some(bytes) = self.user_groups_tree.get(user_id_bytes)? {
-            let id_count = u16::from_be_bytes(bytes[..2].try_into().unwrap()) as usize;
-            for index in (2..(2 + 8 * id_count)).step_by(8) {
+            for index in (0..bytes.len()).step_by(8) {
                 let id = u64::from_be_bytes(bytes[index..index + 8].try_into().unwrap());
                 if self
                     .get_group(id)?
