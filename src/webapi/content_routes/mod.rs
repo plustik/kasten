@@ -25,6 +25,7 @@ mod content_pages;
 pub fn get_routes() -> Vec<Route> {
     routes![
         index_login,
+        get_login,
         index,
         login,
         logout,
@@ -41,6 +42,11 @@ pub fn get_routes() -> Vec<Route> {
 // Show login form:
 #[get("/", rank = 3)]
 fn index_login() -> Html<Template> {
+    let context = Context::new();
+    Html(Template::render("login", context.into_json()))
+}
+#[get("/login.html", rank = 3)]
+fn get_login() -> Html<Template> {
     let context = Context::new();
     Html(Template::render("login", context.into_json()))
 }
