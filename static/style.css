@@ -8,10 +8,6 @@ body {
 	color: #000000;
 }
 
-a, a:hover, a:visited, a:active {
-	color: #000000;
-}
-
 a[href] {
 	color: #0000cc;
 }
@@ -20,33 +16,13 @@ a[href]:hover, a[href]:visited, a[href]:active {
 	color: #880000;
 }
 
-span.cntrl {
-	border: dashed #aaaaaa;
-	border-width: 1px;
-	padding: 0px 2px 0px 2px;
-	margin:  0px 2px 0px 2px;
-}
-
 img.logo, span.logo {
 	float: right;
 	border-width: 0px;
 }
 
-img.avatar {
-	vertical-align: middle;
-}
-
-img.blob {
-	max-height: 100%;
-	max-width: 100%;
-}
-
 div.header, div.title {
 	clear: both;
-}
-
-a.list img.avatar {
-	border-style: none;
 }
 
 div.page_header {
@@ -65,12 +41,27 @@ div.page_header a:hover {
 	color: #880000;
 }
 
-div.page_nav, div.page_nav_trailer {
+div.action_nav {
 	padding: 8px;
 }
 
-div.page_nav a:visited, div.page_nav_trailer a:visited {
+div.action_nav a:visited {
 	color: #0000cc;
+}
+div.action_nav a:hover {
+	color: #880000;
+}
+
+button.action-button {
+	border: none;
+	color: #0000cc;
+	background-color: inherit;
+}
+button.action-button:hover, button.action-button:active {
+	color: #880000;
+}
+button.action-button:hover {
+	cursor: pointer;
 }
 
 div.dir_attributes {
@@ -147,16 +138,6 @@ table {
 	border-spacing: 0;
 }
 
-table.blame {
-	border-collapse: collapse;
-}
-
-table.blame td {
-	padding: 0px 5px;
-	font-size: 100%;
-	vertical-align: top;
-}
-
 th {
 	padding: 2px 5px;
 	font-size: 100%;
@@ -164,33 +145,19 @@ th {
 }
 
 /* do not change row style on hover for 'blame' view */
-tr.light,
-table.blame .light:hover {
-	background-color: #ffffff;
+tr.light {
+	background-color: #f6f6f0;
 }
 
-tr.dark,
-table.blame .dark:hover {
-	background-color: #f6f6f0;
+tr.dark {
+	background-color: #edece6;
 }
 
 /* currently both use the same, but it can change */
 tr.light:hover,
 tr.dark:hover {
-	background-color: #edece6;
+	background-color: #cdccc6;
 }
-
-/* boundary commits in 'blame' view */
-/* and commits without "previous" */
-tr.boundary td.sha1,
-tr.no-previous td.linenr {
-	font-weight: bold;
-}
-
-/* for 'blame_incremental', during processing */
-tr.color1 { background-color: #f6fff6; }
-tr.color2 { background-color: #f6f6ff; }
-tr.color3 { background-color: #fff6f6; }
 
 td {
 	padding: 2px 5px;
@@ -198,78 +165,40 @@ td {
 	vertical-align: top;
 }
 
-td.link, td.selflink {
+td.link {
 	padding: 2px 5px;
 	font-family: sans-serif;
 	font-size: 70%;
-}
-
-td.selflink {
-	padding-right: 0px;
 }
 
 td.sha1 {
 	font-family: monospace;
 }
 
-.error {
-	color: red;
-	background-color: yellow;
-}
-
-td.current_head {
-	text-decoration: underline;
-}
-
-td.category {
-	background-color: #d9d8d1;
-	border-top: 1px solid #000000;
-	border-left: 1px solid #000000;
-	font-weight: bold;
-}
-
-table.diff_tree span.file_status.new {
-	color: #008000;
-}
-
-table.diff_tree span.file_status.deleted {
-	color: #c00000;
-}
-
-table.diff_tree span.file_status.moved,
-table.diff_tree span.file_status.mode_chnge {
-	color: #777777;
-}
-
-table.diff_tree span.file_status.copied {
-  color: #70a070;
-}
-
-td.pre, div.pre {
-	font-family: monospace;
-	font-size: 12px;
-}
-
-div.pre {
-	white-space: pre-wrap;
-	word-wrap: break-word;
-}
-
-div.pre {
-	padding-left: 5.5ex !important;
-	text-indent: -5.5ex;
-}
-
-td.pre {
-	white-space: pre-wrap;
-}
-
 td.mode {
 	font-family: monospace;
 }
 
-/* format of (optional) objects size in 'tree' view */
 td.size {
 	font-family: monospace;
 	text-align: right;
+}
+
+input.new-name-input {
+	padding: 0px;
+	border: none;
+	color: #000000;
+}
+
+button.link-button {
+	padding: 0px;
+	border: none;
+	color: #0000cc;
+	background-color: inherit;
+}
+button.link-button:hover, button.link-button:active {
+	color: #880000;
+}
+button.link-button:hover {
+	cursor: pointer;
 }

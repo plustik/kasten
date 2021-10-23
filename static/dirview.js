@@ -17,17 +17,31 @@ switch (document.readyState) {
 
 
 function registerCallbacks() {
+	// DEBUG
+	//showNewDir();
+	// Mkdir push button:
+	const action_list = document.getElementById("action_list");
+	// Add seperator:
+	let seperator = document.createElement("span");
+	seperator.setAttribute("class", "barsep");
+	seperator.innerHTML = '&#160;|&#160;';
+	action_list.appendChild(seperator);
+	// Add button:
+	let mkDirSpan = document.createElement("span");
+	mkDirSpan.setAttribute("class", "tab");
+	let mkDirBtn = document.createElement("button");
+	mkDirBtn.setAttribute("type", "button");
+	mkDirBtn.setAttribute("class", "action-button");
+	mkDirBtn.innerHTML = "mkdir";
+	mkDirBtn.addEventListener('click', showNewDir);
+	mkDirSpan.appendChild(mkDirBtn);
+	action_list.appendChild(mkDirSpan);
+
+	return;
+
 	// Upload push button:
 	const uploadBtn = document.getElementById("file-upload-btn");
 	uploadBtn.addEventListener('click', uploadFile);
-
-	// Mkdir push button:
-	const mkdirBtn = document.getElementById("mkdir-btn");
-	mkdirBtn.addEventListener('click', addDir);
-
-
-	const addBtn = document.getElementById("dir-add-btn");
-	addBtn.addEventListener('click', toggleAddDropdown);
 
 	// Edit forms:
 
@@ -121,14 +135,26 @@ function registerCallbacks() {
 }
 
 
-function toggleAddDropdown() {
-	const addDropdown = document.getElementById("dir-add-drop");
-	if (addDropdown.style.display === "none") {;
-		addDropdown.style.display = "block";
+//
+// General functions
+//
+//
+function verifyName(name) {
+	if (name.length === 0) {
+		return "The given name is to short.";
+	}
+
+	return true;
+}
+
+function serializeBigInt(key, value) {
+	if (typeof value === "bigint") {
+		return value.toString();
 	} else {
-		addDropdown.style.display = "none";
+		return value;
 	}
 }
+
 
 //
 // Upload files
@@ -200,31 +226,70 @@ function onPushFile(req) {
 // Adding directories
 //
 
-function showMkdirForm() {
-	const addDropdown = document.getElementById("dir-add-drop");
-	if (addDropdown.style.display === "block") {;
-		addDropdown.style.display = "none";
+function showNewDir() {
+	let contentList = document.getElementById("content-list");
+	const lastRowClass = contentList.rows.item(contentList.rows.length - 1).getAttribute("class");
+
+	let newRow = contentList.insertRow(-1);
+	if (lastRowClass === "light") {
+		newRow.setAttribute("class", "dark");
+	} else if (lastRowClass === "dark") {
+		newRow.setAttribute("class", "light");
+	} else {
+		console.log("Error: Unkown class of last row.");
+		return;
 	}
 
-	const uploadForm = document.getElementById("mkdir-form");
-	uploadForm.style.display = "block";
-}
-function hideMkdirForm() {
-	const uploadForm = document.getElementById("mkdir-form");
-	uploadForm.style.display = "none";
+	let modeField = newRow.insertCell(-1);
+	modeField.setAttribute("class", "mode");
+	modeField.innerHTML = "drw";
+
+	let sizeField = newRow.insertCell(-1);
+	sizeField.setAttribute("class", "size");
+	sizeField.innerHTML = "&#160;";
+
+	let nameField = newRow.insertCell(-1);
+	nameField.setAttribute("class", "list");
+	nameField.innerHTML = '<input type="text" class="new-name-input" id="new-name" autocomplete="off" placeholder="NAME">';
+	newRow.appendChild(nameField);
+
+	let addDirBtn = document.createElement("button");
+	addDirBtn.setAttribute("type", "button");
+	addDirBtn.setAttribute("class", "link-button");
+	addDirBtn.innerHTML = "add";
+	addDirBtn.addEventListener('click', pushDir);
+	let linkField = newRow.insertCell(-1);
+	linkField.setAttribute("class", "link");
+	linkField.appendChild(addDirBtn);
+
+	document.getElementById("new-name").focus();
 }
 
-function addDir() {
-	const dirName = document.getElementById("dirname").value;
-	const parentId = document.getElementById("current-dir-li").getAttribute("dir_id");
+function pushDir() {
+	const dirName = document.getElementById("new-name").value;
+	if (verifyName(dirName) != true) {
+		document.getElementById("new-name").style.backgroundColor = '#ff9999';
+		return;
+	}
+	const parentId = document.getElementById("current-dir-id").getAttribute("dir_id");
 
 	let header = new Headers();
 	header.set("Accept", "text/json");
 
-	fetch("/mkdir/" + parentId + "/" + encodeURIComponent(dirName),
+	let reqData = {};
+	reqData.parent_id = BigInt("0x" + parentId);
+	console.log(parentId);
+	console.log(reqData.parent_id);
+	console.log(reqData);
+	reqData.name = dirName;
+
+	fetch("/rest_api/dirs/",
 		{
 			method: "POST",
 			headers: header,
+			body: JSON.stringify(reqData, serializeBigInt),
+			mode: "same-origin",
+			redirect: "error",
 		})
 		.then(function(res) {
 			if (res.status == 200) {
@@ -236,6 +301,9 @@ function addDir() {
 		.then(function(jsonRes) {
 			onPushDir(jsonRes);
 		});
+
+	let contentList = document.getElementById("content-list");
+	contentList.deleteRow(-1);
 }
 
 function onPushDir(req) {
@@ -249,8 +317,37 @@ function onPushDir(req) {
 	const fileList = document.getElementById("file-list");
 	fileList.appendChild(newLi);
 
-	// Hide upload form:
-	hideMkdirForm();
+	let contentList = document.getElementById("content-list");
+	const lastRowClass = contentList.rows.item(contentList.rows.length - 1).getAttribute("class");
+
+	let newRow = contentList.insertRow(-1);
+	if (lastRowClass === "light") {
+		newRow.setAttribute("class", "dark");
+	} else if (lastRowClass === "dark") {
+		newRow.setAttribute("class", "light");
+	} else {
+		console.log("Error: Unkown class of last row.");
+		return;
+	}
+
+	let modeField = newRow.insertCell(-1);
+	modeField.setAttribute("class", "mode");
+	modeField.innerHTML = "drw";
+
+	let sizeField = newRow.insertCell(-1);
+	sizeField.setAttribute("class", "size");
+	sizeField.innerHTML = "&#160;";
+
+	let nameField = newRow.insertCell(-1);
+	nameField.setAttribute("class", "list");
+	nameField.innerHTML = '<a href="dirs/' + Number(req.id).toString(16) + '/view.html">' + req.name + '</a>';
+	newRow.appendChild(nameField);
+
+	let linkField = newRow.insertCell(-1);
+	linkField.setAttribute("class", "link");
+	linkField.innerHTML = '<a href="/dirs/' + Number(req.id).toString(16)
+		+ '/zip">download</a><span class="barsep">&#160;|&#160;</span><a class="showlink" href="dirs/'
+		+ Number(req.id).toString(16) + '/view.html">show</a>'
 }
 
 //

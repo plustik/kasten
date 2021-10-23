@@ -4,8 +4,10 @@
   <meta charset="UTF-8">
   <title>Kasten - {{ PATH_NODES[0] }}</title>
   <link rel="stylesheet" type="text/css" href="/static/style.css"/>
+  <script src="/static/dirview.js" async></script>
 </head>
 <body><span class="body">
+  <div id="current-dir-id" dir_id="{{ PATH_NODES[0].id | tohex }}" display=none></div>
   <div class="page_header">
     <span class="logo-container"><span class="logo-default">
       <a class="logo-link" href="index.html" title="Kasten - Home"><span class="logo" height="27" width="72">Kasten</span></a>
@@ -21,7 +23,7 @@
       {% endfor %}
     </span>
   </div>
-  <div class="page_nav">
+  <div class="action_nav" id="action_list">
     <span class="tab"><a href="/logout.html">logout</a></span>
     <span class="barsep">&#160;|&#160;</span>
     <span class="tab"><a href="/groups.html">groups</a></span>
@@ -46,7 +48,7 @@
   </div>
 
   <div class="page_body">
-    <table class="tree">
+    <table class="fs-list" id="content-list">
       {% set dark = true %}
       {% for child in DIRS %}
       {% if dark %}
@@ -56,7 +58,7 @@
       {% set dark = true %}
       <tr class="light">
       {% endif %}
-      <td class="mode">d{% if chile.may_read %}r{% else %}-{% endif %}{% if child.may_write %}w{% else %}-{% endif %}</td>
+        <td class="mode">d{% if child.may_read %}r{% else %}-{% endif %}{% if child.may_write %}w{% else %}-{% endif %}</td>
         <td class="size">&#160;</td>
         <td class="list"><a href="dirs/{{ child.id | tohex }}/view.html">{{ child.name }}</a></td>
         <td class="link">
@@ -65,7 +67,7 @@
           <a class="showlink" href="dirs/{{ child.id | tohex }}/view.html">show</a>
         </td>
       </tr>
-      /{% endfor %}
+      {% endfor %}
       {% for child in FILES %}
       {% if dark %}
       {% set dark = false %}
@@ -74,8 +76,8 @@
       {% set dark = true %}
       <tr class="light">
       {% endif %}
-      <td class="mode">-{% if child.may_read %}r{% else %}-{% endif %}{% if child.may_write %}w{% else %}-{% endif %}</td>
-      <td class="size">{{ child.size }}</td>
+        <td class="mode">-{% if child.may_read %}r{% else %}-{% endif %}{% if child.may_write %}w{% else %}-{% endif %}</td>
+        <td class="size">{{ child.size }}</td>
         <td class="list"><a href="files/{{ child.id | tohex }}/view.html">{{ child.name }}</a></td>
         <td class="link">
           <a href="/files/{{ child.id | tohex }}/blob">download</a>
@@ -83,7 +85,7 @@
           <a class="showlink" href="files/{{ child.id | tohex }}/view.html">show</a>
         </td>
       </tr>
-      /{% endfor %}
+      {% endfor %}
     </table>
   </div>
   <div class="page_footer">
