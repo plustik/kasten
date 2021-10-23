@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Kasten - {{ PATH_NODES[0] }}</title>
+  <title>Kasten - {{ PATH_NODES[0].name }}</title>
   <link rel="stylesheet" type="text/css" href="/static/style.css"/>
   <script src="/static/dirview.js" async></script>
 </head>
