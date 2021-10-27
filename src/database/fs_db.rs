@@ -147,9 +147,13 @@ impl FsDatabase {
             |(file_t, dir_t, perm_t)| {
                 // Generate new file-id:
                 let mut rng = thread_rng();
-                let mut file_id = rng.next_u64();
-                while self.contains_node_id(file_id)? || file_id == 0 {
-                    file_id = rng.next_u64();
+                let mut file_id = [0u8; 8];
+                rng.fill_bytes(&mut file_id);
+                while dir_t.get(file_id)?.is_some()
+                    || file_t.get(file_id)?.is_some()
+                    || u64::from_be_bytes(file_id) == 0
+                {
+                    rng.fill_bytes(&mut file_id);
                 }
 
                 let parent_bytes = if let Some(b) = dir_t.get(file.parent_id.to_be_bytes())? {
@@ -177,11 +181,11 @@ impl FsDatabase {
                 // Insert new parent directory:
                 dir_t.insert(&file.parent_id.to_be_bytes(), new_parent_bytes)?;
                 // Insert file into file-tree:
-                file_t.insert(&file_id.to_be_bytes(), data.as_slice())?;
+                file_t.insert(&file_id, data.as_slice())?;
                 // Insert permissions into permissions-tree:
-                perm_t.insert(&file_id.to_be_bytes(), perm_data.as_slice())?;
+                perm_t.insert(&file_id, perm_data.as_slice())?;
 
-                Ok(file_id)
+                Ok(u64::from_be_bytes(file_id))
             },
         )?;
 
@@ -316,44 +320,50 @@ impl FsDatabase {
         serialize_id_list(dir.read_group_ids.as_slice(), &mut perm_data);
         serialize_id_list(dir.write_group_ids.as_slice(), &mut perm_data);
 
-        dir.id = (&self.dir_tree, &self.permissions_tree).transaction(|(dir_t, perm_t)| {
-            // Generate new dir-id:
-            let mut rng = thread_rng();
-            let mut dir_id = rng.next_u64();
-            while self.contains_node_id(dir_id)? || dir_id == 0 {
-                dir_id = rng.next_u64();
-            }
-            let parent_bytes = if let Some(b) = dir_t.get(dir.parent_id.to_be_bytes())? {
-                b
-            } else {
-                return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
-            };
-            let mut new_parent_bytes = Vec::from(&parent_bytes[0..16]);
+        dir.id = (&self.dir_tree, &self.permissions_tree, &self.file_tree).transaction(
+            |(dir_t, perm_t, file_t)| {
+                // Generate new dir-id:
+                let mut rng = thread_rng();
+                let mut dir_id = [0u8; 8];
+                rng.fill_bytes(&mut dir_id);
+                while dir_t.get(dir_id)?.is_some()
+                    || file_t.get(dir_id)?.is_some()
+                    || u64::from_be_bytes(dir_id) == 0
+                {
+                    rng.fill_bytes(&mut dir_id);
+                }
+                let parent_bytes = if let Some(b) = dir_t.get(dir.parent_id.to_be_bytes())? {
+                    b
+                } else {
+                    return Err(ConflictableTransactionError::Abort(Error::NoSuchDir));
+                };
+                let mut new_parent_bytes = Vec::from(&parent_bytes[0..16]);
 
-            // Increase child-number:
-            let mut child_number = u16::from_be_bytes(parent_bytes[16..18].try_into().unwrap());
-            // TODO: Handle overflow:
-            child_number += 1;
-            new_parent_bytes.push(child_number.to_be_bytes()[0]);
-            new_parent_bytes.push(child_number.to_be_bytes()[1]);
-            // Add old childs:
-            new_parent_bytes
-                .extend_from_slice(&parent_bytes[18..(18 + (child_number as usize - 1) * 8)]);
-            // Add new child:
-            new_parent_bytes.extend_from_slice(&dir_id.to_be_bytes());
-            // Add name of parent:
-            new_parent_bytes
-                .extend_from_slice(&parent_bytes[(18 + (child_number as usize - 1) * 8)..]);
+                // Increase child-number:
+                let mut child_number = u16::from_be_bytes(parent_bytes[16..18].try_into().unwrap());
+                // TODO: Handle overflow:
+                child_number += 1;
+                new_parent_bytes.push(child_number.to_be_bytes()[0]);
+                new_parent_bytes.push(child_number.to_be_bytes()[1]);
+                // Add old childs:
+                new_parent_bytes
+                    .extend_from_slice(&parent_bytes[18..(18 + (child_number as usize - 1) * 8)]);
+                // Add new child:
+                new_parent_bytes.extend_from_slice(&dir_id);
+                // Add name of parent:
+                new_parent_bytes
+                    .extend_from_slice(&parent_bytes[(18 + (child_number as usize - 1) * 8)..]);
 
-            // Insert new parent directory:
-            dir_t.insert(&dir.parent_id.to_be_bytes(), new_parent_bytes)?;
-            // Insert directory into dir-tree:
-            dir_t.insert(&dir_id.to_be_bytes(), data.as_slice())?;
-            // Insert permissions into permissions-tree:
-            perm_t.insert(&dir_id.to_be_bytes(), perm_data.as_slice())?;
+                // Insert new parent directory:
+                dir_t.insert(&dir.parent_id.to_be_bytes(), new_parent_bytes)?;
+                // Insert directory into dir-tree:
+                dir_t.insert(&dir_id, data.as_slice())?;
+                // Insert permissions into permissions-tree:
+                perm_t.insert(&dir_id, perm_data.as_slice())?;
 
-            Ok(dir_id)
-        })?;
+                Ok(u64::from_be_bytes(dir_id))
+            },
+        )?;
 
         Ok(())
     }

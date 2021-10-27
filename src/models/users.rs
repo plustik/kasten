@@ -7,7 +7,7 @@ use serde::Serialize;
 
 use crate::{database::Database, webapi::GroupMsg};
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct User {
     pub id: u64,
     pub name: String,
@@ -16,7 +16,7 @@ pub struct User {
     pub group_ids: Vec<u64>,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct Group {
     pub id: u64,
     pub name: String,
