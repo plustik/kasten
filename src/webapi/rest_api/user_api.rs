@@ -4,7 +4,7 @@ use super::super::UserMsg;
 use crate::{
     controller,
     database::Database,
-    models::{Id, User, UserSession},
+    models::{Id, UserSession},
     Error,
 };
 
@@ -21,11 +21,11 @@ async fn get_user_info(
     user_id: Id,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<User>, Status> {
+) -> Result<Json<UserMsg>, Status> {
     let user_id = user_id.inner();
 
     match controller::user::get_user_info(user_id, session.user_id, db) {
-        Ok(user) => Ok(Json(user)),
+        Ok(user) => Ok(Json(UserMsg::from(user))),
         Err(Error::NoSuchTarget) => {
             // TODO: Logging
             println!("Error on GET /rest_api/users/...: Tried to get a nonexisting User.");
@@ -54,11 +54,11 @@ async fn add_user(
     user_info: Json<UserMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<User>, Status> {
+) -> Result<Json<UserMsg>, Status> {
     let user_msg = user_info.into_inner();
 
     match controller::user::add_user(user_msg, session.user_id, db) {
-        Ok(user) => Ok(Json(user)),
+        Ok(user) => Ok(Json(UserMsg::from(user))),
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("Error on POST /rest_api/users/: Missing rights to add User.");
@@ -88,22 +88,22 @@ async fn update_user_infos(
     user_info: Json<UserMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<User>, Status> {
+) -> Result<Json<UserMsg>, Status> {
     let mut user_msg = user_info.into_inner();
 
     // Make sure there aren't two different user IDs:
-    if user_msg.id.is_some() && user_msg.id.unwrap() == user_id.inner() {
+    if user_msg.id.is_some() && user_msg.id.as_ref().unwrap() != &user_id {
         // TODO: Logging
         println!("Error on PUT /rest_api/users/...: Two different user IDs.");
         return Err(Status::BadRequest);
     }
     // Set ID attribute of user_msg:
     if user_msg.id.is_none() {
-        user_msg.id = Some(user_id.inner());
+        user_msg.id = Some(user_id);
     }
 
     match controller::user::update_user_infos(user_msg, session.user_id, db) {
-        Ok(user) => Ok(Json(user)),
+        Ok(user) => Ok(Json(UserMsg::from(user))),
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("Error on PUT /rest_api/users/...: Missing rights to update User.");

@@ -5,7 +5,7 @@ use crate::{
     config::Config,
     controller,
     database::Database,
-    models::{File, Id, UserSession},
+    models::{Id, UserSession},
     Error,
 };
 
@@ -32,7 +32,7 @@ async fn get_file_info(
     file_id: Id,
     session: Option<UserSession>,
     db: &State<Database>,
-) -> Result<Json<File>, Status> {
+) -> Result<Json<FileMsg>, Status> {
     let file_id = file_id.inner();
 
     // TODO: Handle public files (session == None)
@@ -43,7 +43,7 @@ async fn get_file_info(
     }
 
     match controller::get_file_info(file_id, session.unwrap().user_id, db) {
-        Ok(file) => Ok(Json(file)),
+        Ok(file) => Ok(Json(FileMsg::from(file))),
         Err(Error::NoSuchFile) => {
             // TODO: Logging
             println!("Error on GET /rest_api/files/...: User requested nonexisting dir.");
@@ -72,13 +72,13 @@ async fn add_file(
     file_info: Json<FileMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<File>, Status> {
+) -> Result<Json<FileMsg>, Status> {
     let mut file_msg = file_info.into_inner();
     // Set the owner_id to the current user:
-    file_msg.owner_id = Some(session.user_id);
+    file_msg.owner_id = Some(Id::from(session.user_id));
 
     match controller::add_file(db, file_msg, session.user_id) {
-        Ok(file) => Ok(Json(file)),
+        Ok(file) => Ok(Json(FileMsg::from(file))),
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("Trying to add a file without the necessary rights.");
@@ -114,13 +114,12 @@ async fn update_file_infos(
     file_info: Json<FileMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<File>, Status> {
-    let file_id = file_id.inner();
+) -> Result<Json<FileMsg>, Status> {
     let mut file_info = file_info.into_inner();
 
     // Make sure there aren't two different ids:
-    if let Some(id) = file_info.id {
-        if id != file_id {
+    if let Some(ref id) = file_info.id {
+        if id != &file_id {
             // TODO: Logging
             println!("Two different file_ids.");
             return Err(Status::BadRequest);
@@ -131,7 +130,7 @@ async fn update_file_infos(
 
     // Performe update:
     match controller::update_file_infos(file_info, session.user_id, db) {
-        Ok(file) => Ok(Json(file)),
+        Ok(file) => Ok(Json(FileMsg::from(file))),
         Err(Error::NoSuchFile) => {
             // TODO: Logging
             println!("Trying to update a nonexisting file.");
@@ -163,7 +162,7 @@ async fn upload_file(
     session: UserSession,
     db: &State<Database>,
     config: &State<Config>,
-) -> Result<Json<File>, Status> {
+) -> Result<Json<FileMsg>, Status> {
     match controller::update_file_content(
         file_id.inner(),
         session.user_id,
@@ -173,7 +172,7 @@ async fn upload_file(
     )
     .await
     {
-        Ok(file) => Ok(Json(file)),
+        Ok(file) => Ok(Json(FileMsg::from(file))),
         Err(Error::NoSuchFile) => {
             // TODO: Logging
             println!("User tried to update content of nonexisting file.");
@@ -206,9 +205,9 @@ async fn add_read_permission(
     group: Json<GroupMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<File>, Status> {
+) -> Result<Json<FileMsg>, Status> {
     let file_id = file_id.inner();
-    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?;
+    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?.as_int();
 
     // Make sure the given file exists:
     let mut file = match controller::get_file_info(file_id, session.user_id, db) {
@@ -236,7 +235,7 @@ async fn add_read_permission(
     match controller::add_read_permission(file_id, group_id, session.user_id, db) {
         Ok(()) => {
             file.read_group_ids.push(group_id);
-            Ok(Json(file))
+            Ok(Json(FileMsg::from(file)))
         }
         Err(Error::NoSuchTarget) => {
             // TODO: Logging
@@ -272,9 +271,9 @@ async fn add_write_permission(
     group: Json<GroupMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<File>, Status> {
+) -> Result<Json<FileMsg>, Status> {
     let file_id = file_id.inner();
-    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?;
+    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?.as_int();
 
     // Make sure the given file exists:
     let mut file = match controller::get_file_info(file_id, session.user_id, db) {
@@ -302,7 +301,7 @@ async fn add_write_permission(
     match controller::add_write_permission(file_id, group_id, session.user_id, db) {
         Ok(()) => {
             file.write_group_ids.push(group_id);
-            Ok(Json(file))
+            Ok(Json(FileMsg::from(file)))
         }
         Err(Error::NoSuchTarget) => {
             // TODO: Logging

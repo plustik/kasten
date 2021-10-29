@@ -134,7 +134,7 @@ pub fn update_user_infos(
 
     // Make sure the id is set:
     let user_id = if let Some(id) = user_infos.id {
-        id
+        id.as_int()
     } else {
         return Err(Error::BadCall);
     };

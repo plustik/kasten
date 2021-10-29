@@ -16,7 +16,8 @@ use rocket_dyn_templates::{tera::Context, Template};
 use crate::{
     config::Config,
     database::Database,
-    models::{Dir, DirBuilder, File, FileBuilder, Id, UserSession},
+    models::{DirBuilder, FileBuilder, Id, UserSession},
+    webapi::{DirMsg, FileMsg},
     Error,
 };
 
@@ -244,7 +245,7 @@ fn mkdir(
     dir_name: &str,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<Dir>, Status> {
+) -> Result<Json<DirMsg>, Status> {
     // Insert new dir to DB:
     let mut new_dir = DirBuilder::new()
         .with_parent_id(parent_id.inner())
@@ -256,7 +257,7 @@ fn mkdir(
         return Err(Status::InternalServerError);
     };
 
-    Ok(Json(new_dir))
+    Ok(Json(DirMsg::from(new_dir)))
 }
 
 #[post("/upload/<parent_id>/<upload_name>", data = "<tmp_file>")]
@@ -267,7 +268,7 @@ async fn upload_file(
     db: &State<Database>,
     config: &State<Config>,
     mut tmp_file: TempFile<'_>,
-) -> Result<Json<File>, Status> {
+) -> Result<Json<FileMsg>, Status> {
     // Insert new file to DB:
     let mut new_file = FileBuilder::new()
         .with_parent_id(parent_id.inner())
@@ -287,7 +288,7 @@ async fn upload_file(
         return Err(Status::InternalServerError);
     }
 
-    Ok(Json(new_file))
+    Ok(Json(FileMsg::from(new_file)))
 }
 
 #[get("/files/<file_id>")]
@@ -330,7 +331,11 @@ fn download_file(
 }
 
 #[delete("/dirs/<dir_id>")]
-fn remove_dir(dir_id: Id, session: UserSession, db: &State<Database>) -> Result<Json<Dir>, Status> {
+fn remove_dir(
+    dir_id: Id,
+    session: UserSession,
+    db: &State<Database>,
+) -> Result<Json<DirMsg>, Status> {
     // Check, if the user is allowed to access the directory:
     let dir = match db.get_dir(dir_id.inner()) {
         Ok(Some(d)) => d,
@@ -352,7 +357,7 @@ fn remove_dir(dir_id: Id, session: UserSession, db: &State<Database>) -> Result<
     match db.remove_dir(dir_id.inner()) {
         Ok(dir) => {
             // Send directory as response:
-            Ok(Json(dir))
+            Ok(Json(DirMsg::from(dir)))
         }
         Err(Error::NoSuchDir) => Err(Status::NotFound),
         Err(e) => {
@@ -369,7 +374,7 @@ fn remove_file(
     session: UserSession,
     db: &State<Database>,
     config: &State<Config>,
-) -> Result<Json<File>, Status> {
+) -> Result<Json<FileMsg>, Status> {
     // Check, if the user is allowed to access the file:
     let file = match db.get_file(file_id.inner()) {
         Ok(Some(d)) => d,
@@ -409,5 +414,5 @@ fn remove_file(
         return Err(Status::InternalServerError);
     }
 
-    Ok(Json(res))
+    Ok(Json(FileMsg::from(res)))
 }

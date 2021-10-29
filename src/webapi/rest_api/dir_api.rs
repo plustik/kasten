@@ -4,7 +4,7 @@ use super::super::{DirMsg, GroupMsg};
 use crate::{
     controller,
     database::Database,
-    models::{Dir, Id, UserSession},
+    models::{Id, UserSession},
     Error,
 };
 
@@ -30,11 +30,11 @@ async fn get_dir_info(
     dir_id: Id,
     session: Option<UserSession>,
     db: &State<Database>,
-) -> Result<Json<Dir>, Status> {
+) -> Result<Json<DirMsg>, Status> {
     let dir_id = dir_id.inner();
 
     match controller::get_dir_info(dir_id, session.as_ref().map(|s| s.user_id), db) {
-        Ok(dir) => Ok(Json(dir)),
+        Ok(dir) => Ok(Json(DirMsg::from(dir))),
         Err(Error::NoSuchDir) => Err(Status::NotFound),
         Err(Error::MissingAuthorization) => {
             if session.is_some() {
@@ -62,13 +62,13 @@ async fn add_dir(
     dir_info: Json<DirMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<Dir>, Status> {
+) -> Result<Json<DirMsg>, Status> {
     let mut dir_msg = dir_info.into_inner();
     // Set the owner_id to the current user:
-    dir_msg.owner_id = Some(session.user_id);
+    dir_msg.owner_id = Some(Id::from(session.user_id));
 
     match controller::add_dir(db, dir_msg, session.user_id) {
-        Ok(dir) => Ok(Json(dir)),
+        Ok(dir) => Ok(Json(DirMsg::from(dir))),
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("Trying to add a dir without the necessary rights.");
@@ -108,13 +108,12 @@ async fn update_dir_infos(
     dir_infos: Json<DirMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<Dir>, Status> {
-    let dir_id = dir_id.inner();
+) -> Result<Json<DirMsg>, Status> {
     let mut dir_info = dir_infos.into_inner();
 
     // Make sure there aren't two different ids:
-    if let Some(id) = dir_info.id {
-        if id != dir_id {
+    if let Some(ref id) = dir_info.id {
+        if id != &dir_id {
             // TODO: Logging
             println!("Two different dir_ids.");
             return Err(Status::BadRequest);
@@ -125,7 +124,7 @@ async fn update_dir_infos(
 
     // Performe update:
     match controller::update_dir_infos(dir_info, session.user_id, db) {
-        Ok(dir) => Ok(Json(dir)),
+        Ok(dir) => Ok(Json(DirMsg::from(dir))),
         Err(Error::NoSuchDir) => {
             // TODO: Logging
             println!("Trying to update a nonexisting directory.");
@@ -161,9 +160,9 @@ async fn add_read_permission(
     group: Json<GroupMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<Dir>, Status> {
+) -> Result<Json<DirMsg>, Status> {
     let dir_id = dir_id.inner();
-    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?;
+    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?.as_int();
 
     // Make sure the given dir exists:
     let mut dir = match controller::get_dir_info(dir_id, Some(session.user_id), db) {
@@ -191,7 +190,7 @@ async fn add_read_permission(
     match controller::add_read_permission(dir_id, group_id, session.user_id, db) {
         Ok(()) => {
             dir.read_group_ids.push(group_id);
-            Ok(Json(dir))
+            Ok(Json(DirMsg::from(dir)))
         }
         Err(Error::NoSuchTarget) => {
             // TODO: Logging
@@ -228,9 +227,9 @@ async fn add_write_permission(
     group: Json<GroupMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<Dir>, Status> {
+) -> Result<Json<DirMsg>, Status> {
     let dir_id = dir_id.inner();
-    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?;
+    let group_id = group.into_inner().id.ok_or(Status::BadRequest)?.as_int();
 
     // Make sure the given dir exists:
     let mut dir = match controller::get_dir_info(dir_id, Some(session.user_id), db) {
@@ -258,7 +257,7 @@ async fn add_write_permission(
     match controller::add_write_permission(dir_id, group_id, session.user_id, db) {
         Ok(()) => {
             dir.write_group_ids.push(group_id);
-            Ok(Json(dir))
+            Ok(Json(DirMsg::from(dir)))
         }
         Err(Error::NoSuchTarget) => {
             // TODO: Logging

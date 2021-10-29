@@ -72,7 +72,7 @@ pub fn update_group_infos(
 ) -> Result<Group, Error> {
     // Make sure, that the ID is given, the group exists and the acting user has the necessary permissions:
     let mut group = db
-        .get_group(group_infos.id.ok_or(Error::BadCall)?)?
+        .get_group(group_infos.id.ok_or(Error::BadCall)?.as_int())?
         .ok_or(Error::NoSuchTarget)?;
     if !group.contains_admin(user_id) {
         return Err(Error::MissingAuthorization);

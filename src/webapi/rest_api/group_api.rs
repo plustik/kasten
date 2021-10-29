@@ -4,7 +4,7 @@ use super::super::GroupMsg;
 use crate::{
     controller,
     database::Database,
-    models::{Group, Id, UserSession},
+    models::{Id, UserSession},
     Error,
 };
 
@@ -21,11 +21,11 @@ async fn get_group_info(
     group_id: Id,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<Group>, Status> {
+) -> Result<Json<GroupMsg>, Status> {
     let group_id = group_id.inner();
 
     match controller::group::get_group_info(group_id, session.user_id, db) {
-        Ok(group) => Ok(Json(group)),
+        Ok(group) => Ok(Json(GroupMsg::from(group))),
         Err(Error::NoSuchTarget) => {
             // TODO: Logging
             println!("Error on GET /rest_api/groups/...: Tried to get a nonexisting Group.");
@@ -54,11 +54,11 @@ async fn add_group(
     group_info: Json<GroupMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<Group>, Status> {
+) -> Result<Json<GroupMsg>, Status> {
     let group_msg = group_info.into_inner();
 
     match controller::group::add_group(group_msg, session.user_id, db) {
-        Ok(group) => Ok(Json(group)),
+        Ok(group) => Ok(Json(GroupMsg::from(group))),
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("Error on POST /rest_api/groups/: Missing rights to add group.");
@@ -88,22 +88,22 @@ async fn update_group_infos(
     group_info: Json<GroupMsg>,
     session: UserSession,
     db: &State<Database>,
-) -> Result<Json<Group>, Status> {
+) -> Result<Json<GroupMsg>, Status> {
     let mut group_msg = group_info.into_inner();
 
     // Make sure there aren't two different group IDs:
-    if group_msg.id.is_some() && group_msg.id.unwrap() == group_id.inner() {
+    if group_msg.id.is_some() && group_msg.id.as_ref().unwrap() == &group_id {
         // TODO: Logging
         println!("Error on PUT /rest_api/groups/...: Two different group IDs.");
         return Err(Status::BadRequest);
     }
     // Set ID attribute of group_msg:
     if group_msg.id.is_none() {
-        group_msg.id = Some(group_id.inner());
+        group_msg.id = Some(group_id);
     }
 
     match controller::group::update_group_infos(group_msg, session.user_id, db) {
-        Ok(group) => Ok(Json(group)),
+        Ok(group) => Ok(Json(GroupMsg::from(group))),
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("Error on PUT /rest_api/groups/...: Missing rights to update group.");

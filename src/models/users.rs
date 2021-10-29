@@ -36,7 +36,7 @@ impl Group {
 
 impl From<GroupMsg> for Group {
     fn from(item: GroupMsg) -> Self {
-        let id = item.id.unwrap_or(0);
+        let id = item.id.map(|id| id.as_int()).unwrap_or(0);
         let name = item.name.unwrap_or_else(|| String::from("[MISSING_NAME]"));
 
         Group {

@@ -27,7 +27,7 @@ pub fn add_dir(db: &Database, dir_infos: DirMsg, user_id: u64) -> Result<Dir, Er
     if !dir_infos
         .parent_id
         .ok_or(Error::BadCall)
-        .map(|p_id| db.get_dir(p_id)?.ok_or(Error::NoSuchDir))??
+        .map(|p_id| db.get_dir(p_id.as_int())?.ok_or(Error::NoSuchDir))??
         .may_write(&db.get_user(user_id)?.ok_or(Error::BadCall)?)
     {
         return Err(Error::MissingAuthorization);
@@ -35,7 +35,7 @@ pub fn add_dir(db: &Database, dir_infos: DirMsg, user_id: u64) -> Result<Dir, Er
 
     let mut dir_builder = DirBuilder::new()
         .with_id(0)
-        .with_parent_id(dir_infos.parent_id.unwrap())
+        .with_parent_id(dir_infos.parent_id.unwrap().as_int())
         .with_owner_id(user_id);
     if let Some(n) = dir_infos.name {
         dir_builder.set_name(n);
@@ -76,7 +76,7 @@ pub fn get_dir_info(dir_id: u64, user_id: Option<u64>, db: &Database) -> Result<
 pub fn update_dir_infos(dir_info: DirMsg, user_id: u64, db: &Database) -> Result<Dir, Error> {
     // Get old Dir from DB:
     let mut dir = db
-        .get_dir(dir_info.id.ok_or(Error::BadCall)?)?
+        .get_dir(dir_info.id.ok_or(Error::BadCall)?.as_int())?
         .ok_or_else(|| {
             // TODO: Logging
             println!("Trying to update a nonexisting directory.");
@@ -114,14 +114,14 @@ pub fn add_file(db: &Database, file_info: FileMsg, user_id: u64) -> Result<File,
     if !file_info
         .parent_id
         .ok_or(Error::BadCall)
-        .map(|p_id| db.get_dir(p_id)?.ok_or(Error::NoSuchDir))??
+        .map(|p_id| db.get_dir(p_id.as_int())?.ok_or(Error::NoSuchDir))??
         .may_write(&db.get_user(user_id)?.ok_or(Error::BadCall)?)
     {
         return Err(Error::MissingAuthorization);
     }
 
     let mut file_builder = FileBuilder::new()
-        .with_parent_id(file_info.parent_id.unwrap())
+        .with_parent_id(file_info.parent_id.unwrap().as_int())
         .with_owner_id(user_id);
     if let Some(n) = file_info.name {
         file_builder.set_name(n);
@@ -162,7 +162,7 @@ pub fn get_file_info(file_id: u64, user_id: u64, db: &Database) -> Result<File, 
 pub fn update_file_infos(file_info: FileMsg, user_id: u64, db: &Database) -> Result<File, Error> {
     // Get old File from DB:
     let mut file = db
-        .get_file(file_info.id.ok_or(Error::BadCall)?)?
+        .get_file(file_info.id.ok_or(Error::BadCall)?.as_int())?
         .ok_or_else(|| {
             // TODO: Logging
             println!("Trying to update a nonexisting file.");

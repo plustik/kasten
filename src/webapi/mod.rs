@@ -11,14 +11,14 @@ use rocket_dyn_templates::{
     tera::{Filter, Value},
     Engines, Template,
 };
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use std::collections::{hash_map::RandomState, HashMap};
 
 use crate::{
     config::Config,
     database::Database,
-    models::{Dir, File, Group, User},
+    models::{Dir, File, Group, Id, User},
 };
 
 mod content_routes;
@@ -92,29 +92,42 @@ fn init_template_engine(engines: &mut Engines) {
 /**
  * Representation of a possibly incomplete Dir that the server got as a requests body.
  */
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct DirMsg {
-    pub id: Option<u64>,
-    pub parent_id: Option<u64>,
-    pub owner_id: Option<u64>,
-    pub read_group_ids: Option<Vec<u64>>,
-    pub write_group_ids: Option<Vec<u64>>,
-    pub child_ids: Option<Vec<u64>>,
+    pub id: Option<Id>,
+    pub parent_id: Option<Id>,
+    pub owner_id: Option<Id>,
+    pub read_group_ids: Option<Vec<Id>>,
+    pub write_group_ids: Option<Vec<Id>>,
+    pub child_ids: Option<Vec<Id>>,
     pub name: Option<String>,
 }
 
 impl DirMsg {
     pub fn apply_changes(self, dir: &mut Dir) {
-        assert!(self.id.is_none() || self.id.unwrap() == dir.id);
+        assert!(self.id.is_none() || self.id.unwrap().as_int() == dir.id);
 
         if let Some(parent) = self.parent_id {
-            dir.parent_id = parent;
+            dir.parent_id = parent.as_int();
         }
         if let Some(owner) = self.owner_id {
-            dir.owner_id = owner;
+            dir.owner_id = owner.as_int();
         }
         if let Some(name) = self.name {
             dir.name = name;
+        }
+    }
+}
+impl From<Dir> for DirMsg {
+    fn from(dir: Dir) -> Self {
+        DirMsg {
+            id: Some(Id::from(dir.id)),
+            parent_id: Some(Id::from(dir.parent_id)),
+            owner_id: Some(Id::from(dir.owner_id)),
+            read_group_ids: Some(dir.read_group_ids.into_iter().map(Id::from).collect()),
+            write_group_ids: Some(dir.write_group_ids.into_iter().map(Id::from).collect()),
+            child_ids: Some(dir.child_ids.into_iter().map(Id::from).collect()),
+            name: Some(dir.name),
         }
     }
 }
@@ -122,28 +135,40 @@ impl DirMsg {
 /**
  * Representation of a possibly incomplete File that the server got as a requests body.
  */
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct FileMsg {
-    pub id: Option<u64>,
-    pub parent_id: Option<u64>,
-    pub owner_id: Option<u64>,
-    pub read_group_ids: Option<Vec<u64>>,
-    pub write_group_ids: Option<Vec<u64>>,
+    pub id: Option<Id>,
+    pub parent_id: Option<Id>,
+    pub owner_id: Option<Id>,
+    pub read_group_ids: Option<Vec<Id>>,
+    pub write_group_ids: Option<Vec<Id>>,
     pub name: Option<String>,
 }
 
 impl FileMsg {
     pub fn apply_changes(self, file: &mut File) {
-        assert!(self.id.is_none() || self.id.unwrap() == file.id);
+        assert!(self.id.is_none() || self.id.unwrap().as_int() == file.id);
 
         if let Some(parent) = self.parent_id {
-            file.parent_id = parent;
+            file.parent_id = parent.as_int();
         }
         if let Some(owner) = self.owner_id {
-            file.owner_id = owner;
+            file.owner_id = owner.as_int();
         }
         if let Some(name) = self.name {
             file.name = name;
+        }
+    }
+}
+impl From<File> for FileMsg {
+    fn from(file: File) -> Self {
+        FileMsg {
+            id: Some(Id::from(file.id)),
+            parent_id: Some(Id::from(file.parent_id)),
+            owner_id: Some(Id::from(file.owner_id)),
+            read_group_ids: Some(file.read_group_ids.into_iter().map(Id::from).collect()),
+            write_group_ids: Some(file.write_group_ids.into_iter().map(Id::from).collect()),
+            name: Some(file.name),
         }
     }
 }
@@ -151,16 +176,16 @@ impl FileMsg {
 /**
  * Representation of a possibly incomplete User that the server got as a requests body.
  */
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct UserMsg {
-    pub id: Option<u64>,
+    pub id: Option<Id>,
     pub name: Option<String>,
     pub password: Option<String>,
 }
 
 impl UserMsg {
     pub fn apply_changes(self, user: &mut User) {
-        assert!(self.id.is_none() || self.id.unwrap() == user.id || user.id == 0);
+        assert!(self.id.is_none() || self.id.unwrap().as_int() == user.id || user.id == 0);
 
         if let Some(name) = self.name {
             user.name = name;
@@ -178,22 +203,39 @@ impl UserMsg {
         }
     }
 }
+impl From<User> for UserMsg {
+    fn from(user: User) -> Self {
+        UserMsg {
+            id: Some(Id::from(user.id)),
+            name: Some(user.name),
+            password: None,
+        }
+    }
+}
 
 /**
  * Representation of a possibly incomplete Group that the server got as a requests body.
  */
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct GroupMsg {
-    pub id: Option<u64>,
+    pub id: Option<Id>,
     pub name: Option<String>,
 }
 
 impl GroupMsg {
     pub fn apply_changes(self, group: &mut Group) {
-        assert!(self.id.is_none() || self.id.unwrap() == group.id || group.id == 0);
+        assert!(self.id.is_none() || self.id.unwrap().as_int() == group.id || group.id == 0);
 
         if let Some(name) = self.name {
             group.name = name;
+        }
+    }
+}
+impl From<Group> for GroupMsg {
+    fn from(group: Group) -> Self {
+        GroupMsg {
+            id: Some(Id::from(group.id)),
+            name: Some(group.name),
         }
     }
 }
