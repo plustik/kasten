@@ -1,4 +1,5 @@
 mod dir;
+mod file;
 mod user;
 
 fn main() {
@@ -24,6 +25,12 @@ fn main() {
         "diradd" => {
             dir::diradd(args);
         }
+        "filelist" => {
+            file::filelist(args);
+        }
+        "filerm" => {
+            file::filerm(args);
+        }
         "help" | "-h" | "--help" => {
             println!("Usage: bonbon <COMMAND> [<ARGUMENTS>]");
             println!("COMMANDS:");
@@ -32,6 +39,8 @@ fn main() {
             println!("'userrm <db-location> <user-id>'");
             println!("'dirlist <db-location>'");
             println!("'diradd <db-location> <dirname> <parent_id> <owner_id>'");
+            println!("'filelist <db-location>'");
+            println!("'filerm <db-location> <file-id>'");
         }
         _ => {
             println!("COMMANDS:\n'useradd'\n'userlist'\n'userrm'\n'help'");
