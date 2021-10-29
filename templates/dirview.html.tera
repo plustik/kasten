@@ -10,7 +10,7 @@
   <div id="current-dir-id" dir_id="{{ PATH_NODES[0].id | tohex }}" display=none></div>
   <div class="page_header">
     <span class="logo-container"><span class="logo-default">
-      <a class="logo-link" href="index.html" title="Kasten - Home"><span class="logo" height="27" width="72">Kasten</span></a>
+      <a class="logo-link" href="/index.html" title="Kasten - Home"><span class="logo" height="27" width="72">Kasten</span></a>
     </span></span>
     <span style="display:none">&#160;</span>
     <span class="banner-container">
@@ -32,16 +32,16 @@
     <span class="title"><a class="title" href="/dirs/{{ PATH_NODES[0].id | tohex }}/view.html">{{ PATH_NODES[0].name }}</a></span>
   </div>
   <div class="dir_attributes">
-    <span class="attribute">Owner: </span><a href="/user/{{ OWNERNAME }}/view.html" title="owner">{{ OWNERNAME }}</a><br/>
+    <span class="attribute">Owner: </span><a href="/users/{{ OWNERNAME }}/view.html" title="owner">{{ OWNERNAME }}</a><br/>
     <span class="attribute">Readable: </span>
     {% for group in READABLE_GROUPS %}
-    <a href="groups/{{ group.id | tohex }}/view.html" title="group">{{ group.name }}</a>
+    <a href="/groups/{{ group.id | tohex }}/view.html" title="group">{{ group.name }}</a>
     <span class="barsep">&#160;|&#160;</span>
     {% endfor %}
     <br/>
     <span class="attribute">Writeable: </span>
     {% for group in WRITEABLE_GROUPS %}
-    <a href="groups/{{ group.id | tohex }}/view.html" title="group">{{ group.name }}</a>
+    <a href="/groups/{{ group.id | tohex }}/view.html" title="group">{{ group.name }}</a>
     <span class="barsep">&#160;|&#160;</span>
     {% endfor %}
     <br/>
@@ -60,11 +60,11 @@
       {% endif %}
         <td class="mode">d{% if child.may_read %}r{% else %}-{% endif %}{% if child.may_write %}w{% else %}-{% endif %}</td>
         <td class="size">&#160;</td>
-        <td class="list"><a href="dirs/{{ child.id | tohex }}/view.html">{{ child.name }}</a></td>
+        <td class="list"><a href="/dirs/{{ child.id | tohex }}/view.html">{{ child.name }}</a></td>
         <td class="link">
           <a href="/dirs/{{ child.id | tohex }}/zip">download</a>
           <span class="barsep">&#160;|&#160;</span>
-          <a class="showlink" href="dirs/{{ child.id | tohex }}/view.html">show</a>
+          <a class="showlink" href="/dirs/{{ child.id | tohex }}/view.html">show</a>
         </td>
       </tr>
       {% endfor %}
@@ -78,11 +78,11 @@
       {% endif %}
         <td class="mode">-{% if child.may_read %}r{% else %}-{% endif %}{% if child.may_write %}w{% else %}-{% endif %}</td>
         <td class="size">{{ child.size }}</td>
-        <td class="list"><a href="files/{{ child.id | tohex }}/view.html">{{ child.name }}</a></td>
+        <td class="list"><a href="/files/{{ child.id | tohex }}/view.html">{{ child.name }}</a></td>
         <td class="link">
           <a href="/files/{{ child.id | tohex }}/blob">download</a>
           <span class="barsep">&#160;|&#160;</span>
-          <a class="showlink" href="files/{{ child.id | tohex }}/view.html">show</a>
+          <a class="showlink" href="/files/{{ child.id | tohex }}/view.html">show</a>
         </td>
       </tr>
       {% endfor %}
