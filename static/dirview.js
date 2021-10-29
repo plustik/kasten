@@ -277,10 +277,7 @@ function pushDir() {
 	header.set("Accept", "text/json");
 
 	let reqData = {};
-	reqData.parent_id = BigInt("0x" + parentId);
-	console.log(parentId);
-	console.log(reqData.parent_id);
-	console.log(reqData);
+	reqData.parent_id = parentId;
 	reqData.name = dirName;
 
 	fetch("/rest_api/dirs/",
@@ -307,16 +304,7 @@ function pushDir() {
 }
 
 function onPushDir(req) {
-	// Create new dir list item:
-	let newLi = document.createElement("li");
-	newLi.innerHTML = req.name;
-	newLi.innerHTML = '<a class="dir-name" href="/dirs/' + Number(req.id).toString(16) + '/view.html">' + req.name + '/</a>';
-	newLi.setAttribute("class", "dir-item");
-
-	// Append new list item:
-	const fileList = document.getElementById("file-list");
-	fileList.appendChild(newLi);
-
+	console.log(req);
 	let contentList = document.getElementById("content-list");
 	const lastRowClass = contentList.rows.item(contentList.rows.length - 1).getAttribute("class");
 
@@ -340,14 +328,14 @@ function onPushDir(req) {
 
 	let nameField = newRow.insertCell(-1);
 	nameField.setAttribute("class", "list");
-	nameField.innerHTML = '<a href="dirs/' + Number(req.id).toString(16) + '/view.html">' + req.name + '</a>';
+	nameField.innerHTML = '<a href="/dirs/' + req.id + '/view.html">' + req.name + '</a>';
 	newRow.appendChild(nameField);
 
 	let linkField = newRow.insertCell(-1);
 	linkField.setAttribute("class", "link");
-	linkField.innerHTML = '<a href="/dirs/' + Number(req.id).toString(16)
-		+ '/zip">download</a><span class="barsep">&#160;|&#160;</span><a class="showlink" href="dirs/'
-		+ Number(req.id).toString(16) + '/view.html">show</a>'
+	linkField.innerHTML = '<a href="/dirs/' + req.id
+		+ '/zip">download</a><span class="barsep">&#160;|&#160;</span><a class="showlink" href="/dirs/'
+		+ req.id + '/view.html">show</a>'
 }
 
 //
