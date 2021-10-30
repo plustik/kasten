@@ -24,11 +24,12 @@ pub fn dirlist(args: Vec<String>) {
         match res {
             Ok((id_bytes, dir_bytes)) => {
                 let dir_id = u64::from_be_bytes(id_bytes.as_ref().try_into().unwrap());
+                let parent_id = u64::from_be_bytes(dir_bytes[0..8].try_into().unwrap());
                 let name_start =
                     18 + (8 * u16::from_be_bytes(dir_bytes[16..18].try_into().unwrap()) as usize);
                 let dirname = String::from_utf8(Vec::from(&dir_bytes[name_start..])).unwrap();
 
-                println!("{:x}: \t{}", dir_id, dirname);
+                println!("{:x} (<- {:x}): \t{}", dir_id, parent_id, dirname);
             }
             Err(e) => {
                 println!("Error while reading from DB:\n{}", e);

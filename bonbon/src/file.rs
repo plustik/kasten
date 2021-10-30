@@ -24,9 +24,10 @@ pub fn filelist(args: Vec<String>) {
         match res {
             Ok((id_bytes, file_bytes)) => {
                 let file_id = u64::from_be_bytes(id_bytes.as_ref().try_into().unwrap());
+                let parent_id = u64::from_be_bytes(file_bytes[0..8].try_into().unwrap());
                 let filename = String::from_utf8(Vec::from(&file_bytes[16..])).unwrap();
 
-                println!("{:x}: \t{}", file_id, filename);
+                println!("{:x} (<- {:x}): \t{}", file_id, parent_id, filename);
             }
             Err(e) => {
                 println!("Error while reading from DB:\n{}", e);
