@@ -173,7 +173,7 @@ impl FsDatabase {
                 new_parent_bytes
                     .extend_from_slice(&parent_bytes[18..(18 + (child_number as usize - 1) * 8)]);
                 // Add new child:
-                new_parent_bytes.extend_from_slice(&file.id.to_be_bytes());
+                new_parent_bytes.extend_from_slice(&file_id);
                 // Add name of parent:
                 new_parent_bytes
                     .extend_from_slice(&parent_bytes[(18 + (child_number as usize - 1) * 8)..]);

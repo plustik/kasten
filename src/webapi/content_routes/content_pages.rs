@@ -28,7 +28,7 @@ impl DirContext {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 struct FileContext {
     id: u64,
     name: String,

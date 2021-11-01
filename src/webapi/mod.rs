@@ -143,6 +143,7 @@ pub struct FileMsg {
     pub read_group_ids: Option<Vec<Id>>,
     pub write_group_ids: Option<Vec<Id>>,
     pub name: Option<String>,
+    pub size: Option<u64>,
 }
 
 impl FileMsg {
@@ -169,6 +170,7 @@ impl From<File> for FileMsg {
             read_group_ids: Some(file.read_group_ids.into_iter().map(Id::from).collect()),
             write_group_ids: Some(file.write_group_ids.into_iter().map(Id::from).collect()),
             name: Some(file.name),
+            size: None, // TODO: Change to files size, when adding file attribute to File struct.
         }
     }
 }

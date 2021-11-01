@@ -77,7 +77,11 @@
       <tr class="light">
       {% endif %}
         <td class="mode">-{% if child.may_read %}r{% else %}-{% endif %}{% if child.may_write %}w{% else %}-{% endif %}</td>
+        {% if child.size %}
         <td class="size">{{ child.size }}</td>
+        {% else %}
+        <td class="size">?</td>
+        {% endif %}
         <td class="list"><a href="/files/{{ child.id | tohex }}/view.html">{{ child.name }}</a></td>
         <td class="link">
           <a href="/files/{{ child.id | tohex }}/blob">download</a>

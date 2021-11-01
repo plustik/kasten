@@ -202,14 +202,18 @@ pub async fn update_file_content(
     let file = db.get_file(file_id)?.ok_or(Error::NoSuchFile)?;
 
     // Check users permissions:
-    if file.may_write(&db.get_user(user_id)?.ok_or(Error::BadCall)?) {
+    if !file.may_write(&db.get_user(user_id)?.ok_or(Error::BadCall)?) {
         return Err(Error::MissingAuthorization);
     }
 
     // Move temporary file to permanent path:
     let mut new_path = config.file_location.clone();
     new_path.push(format!("{:x}", file.id));
-    new_content.persist_to(new_path).await?;
+    if let Err(e) = new_content.persist_to(&new_path).await {
+        // TODO Logging
+        println!("Could not persist TempFile: {}", e);
+        new_content.move_copy_to(new_path).await?;
+    }
 
     // Send file information as respose:
     Ok(file)
