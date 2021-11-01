@@ -17,25 +17,9 @@ switch (document.readyState) {
 
 
 function registerCallbacks() {
-	// DEBUG
-	//showNewDir();
-	// Mkdir push button:
-	const action_list = document.getElementById("action_list");
-	// Add seperator:
-	let seperator = document.createElement("span");
-	seperator.setAttribute("class", "barsep");
-	seperator.innerHTML = '&#160;|&#160;';
-	action_list.appendChild(seperator);
-	// Add button:
-	let mkDirSpan = document.createElement("span");
-	mkDirSpan.setAttribute("class", "tab");
-	let mkDirBtn = document.createElement("button");
-	mkDirBtn.setAttribute("type", "button");
-	mkDirBtn.setAttribute("class", "action-button");
-	mkDirBtn.innerHTML = "mkdir";
-	mkDirBtn.addEventListener('click', showNewDir);
-	mkDirSpan.appendChild(mkDirBtn);
-	action_list.appendChild(mkDirSpan);
+	addMkDirBtn();
+
+	addUploadFileBtn();
 
 	return;
 
@@ -146,6 +130,16 @@ function verifyName(name) {
 
 	return true;
 }
+function verifyFile(file) {
+	if (file.size >= 65536) {
+		return "The given file is to big.";
+	}
+	if (verifyName(file.name) !== true) {
+		return verifyName(file.name);
+	}
+
+	return true;
+}
 
 function serializeBigInt(key, value) {
 	if (typeof value === "bigint") {
@@ -160,38 +154,108 @@ function serializeBigInt(key, value) {
 // Upload files
 //
 
-function showUploadForm() {
-	const addDropdown = document.getElementById("dir-add-drop");
-	if (addDropdown.style.display === "block") {;
-		addDropdown.style.display = "none";
+function addUploadFileBtn() {
+	// Upload button:
+	const action_list = document.getElementById("action_list");
+	// Add seperator:
+	let seperator = document.createElement("span");
+	seperator.setAttribute("class", "barsep");
+	seperator.innerHTML = '&#160;|&#160;';
+	action_list.appendChild(seperator);
+	// Add button:
+	let uploadSpan = document.createElement("span");
+	uploadSpan.setAttribute("class", "tab");
+	let uploadBtn = document.createElement("button");
+	uploadBtn.setAttribute("type", "button");
+	uploadBtn.setAttribute("class", "action-button");
+	uploadBtn.innerHTML = "upload";
+	uploadBtn.addEventListener('click', showNewFile);
+	uploadSpan.appendChild(uploadBtn);
+	action_list.appendChild(uploadSpan);
+}
+
+function showNewFile() {
+	let contentList = document.getElementById("content-list");
+	const lastRowClass = contentList.rows.item(contentList.rows.length - 1).getAttribute("class");
+
+	let newRow = contentList.insertRow(-1);
+	if (lastRowClass === "light") {
+		newRow.setAttribute("class", "dark");
+	} else if (lastRowClass === "dark") {
+		newRow.setAttribute("class", "light");
+	} else {
+		console.log("Error: Unkown class of last row.");
+		return;
 	}
 
-	const uploadForm = document.getElementById("upload-form");
-	uploadForm.style.display = "block";
-}
-function hideUploadForm() {
-	const uploadForm = document.getElementById("upload-form");
-	uploadForm.style.display = "none";
+	let modeField = newRow.insertCell(-1);
+	modeField.setAttribute("class", "mode");
+	modeField.innerHTML = "drw";
+
+	let sizeField = newRow.insertCell(-1);
+	sizeField.setAttribute("class", "size");
+	sizeField.innerHTML = "&#160;";
+
+	let nameField = newRow.insertCell(-1);
+	nameField.setAttribute("class", "list");
+	nameField.innerHTML = '<input type="file" class="new-file-input" id="new-file" autocomplete="off" placeholder="FILE">';
+	newRow.appendChild(nameField);
+
+	let addDirBtn = document.createElement("button");
+	addDirBtn.setAttribute("type", "button");
+	addDirBtn.setAttribute("class", "link-button");
+	addDirBtn.innerHTML = "upload";
+	addDirBtn.addEventListener('click', uploadFile);
+	let linkField = newRow.insertCell(-1);
+	linkField.setAttribute("class", "link");
+	linkField.appendChild(addDirBtn);
+
+	document.getElementById("new-file").focus();
 }
 
 
 function uploadFile() {
-	const fileInput = document.getElementById("upload-file");
+	const fileInput = document.getElementById("new-file");
 	const files = fileInput.files;
-	const dirId = document.getElementById("current-dir-li").getAttribute("dir_id");
+	const parentId = document.getElementById("current-dir-id").getAttribute("dir_id");
 	
 	for (var i = 0; i < files.length; i++) {
 		const file = files.item(i);
-		if (file.size < 65536) {
-			let header = new Headers();
-			header.set("Content-Type", file.type);
-			header.set("Accept", "text/json");
-			fetch("/upload/" + dirId + "/" + encodeURIComponent(file.name),
-				{
-					method: "POST",
-					headers: header,
-					body: file,
-				})
+		if (verifyFile(file) != true) {
+			document.getElementById("new-file").style.backgroundColor = '#ff9999';
+			return;
+		}
+
+		let header = new Headers();
+		header.set("Content-Type", "text/json");
+		header.set("Accept", "text/json");
+		const reqData = {
+			parent_id: parentId,
+			name: file.name,
+		};
+		fetch("/rest_api/files",
+			{
+				method: "POST",
+				headers: header,
+				body: JSON.stringify(reqData, serializeBigInt),
+			})
+			.then(function(res) {
+				if (res.status == 200) {
+					return res.json()
+				} else {
+					console.log(res);
+				}
+			})
+			.then(function(res) {
+				let header = new Headers();
+				header.set("Content-Type", file.type);
+				header.set("Accept", "text/json");
+				fetch("/rest_api/files/" + res.id + "/data",
+					{
+						method: "PUT",
+						headers: header,
+						body: file,
+					})
 				.then(function(res) {
 					if (res.status == 200) {
 						return res.json()
@@ -200,31 +264,72 @@ function uploadFile() {
 					}
 				})
 				.then(function(jsonRes) {
-					onPushFile(jsonRes);
+					onUploadFile(jsonRes);
 				});
-		} else {
-			// TODO: Show error.
-		}
+			});
 	}
+
+	let contentList = document.getElementById("content-list");
+	contentList.deleteRow(-1);
 }
 
-function onPushFile(req) {
-	// Create new file list item:
-	let newLi = document.createElement("li");
-	newLi.innerHTML = '<a class="file-name" href="/files/' + Number(req.id).toString(16) + '" download="' + req.name + '">' + req.name + '</a>';
-	newLi.setAttribute("class", "file-item");
+function onUploadFile(req) {
+	let contentList = document.getElementById("content-list");
+	const lastRowClass = contentList.rows.item(contentList.rows.length - 1).getAttribute("class");
 
-	// Append new list item:
-	const fileList = document.getElementById("file-list");
-	fileList.appendChild(newLi);
+	let newRow = contentList.insertRow(-1);
+	if (lastRowClass === "light") {
+		newRow.setAttribute("class", "dark");
+	} else if (lastRowClass === "dark") {
+		newRow.setAttribute("class", "light");
+	} else {
+		console.log("Error: Unkown class of last row.");
+		return;
+	}
 
-	// Hide upload form:
-	hideUploadForm();
+	let modeField = newRow.insertCell(-1);
+	modeField.setAttribute("class", "mode");
+	modeField.innerHTML = "drw";
+
+	let sizeField = newRow.insertCell(-1);
+	sizeField.setAttribute("class", "size");
+	sizeField.innerHTML = req.size ? req.size.toString() : "?";
+
+	let nameField = newRow.insertCell(-1);
+	nameField.setAttribute("class", "list");
+	nameField.innerHTML = '<a href="/files/' + req.id + '/view.html">' + req.name + '</a>';
+	newRow.appendChild(nameField);
+
+	let linkField = newRow.insertCell(-1);
+	linkField.setAttribute("class", "link");
+	linkField.innerHTML = '<a href="/files/' + req.id
+		+ '/blob">download</a><span class="barsep">&#160;|&#160;</span><a class="showlink" href="/files/'
+		+ req.id + '/view.html">show</a>'
 }
 
 //
 // Adding directories
 //
+
+function addMkDirBtn() {
+	// Mkdir push button:
+	const action_list = document.getElementById("action_list");
+	// Add seperator:
+	let seperator = document.createElement("span");
+	seperator.setAttribute("class", "barsep");
+	seperator.innerHTML = '&#160;|&#160;';
+	action_list.appendChild(seperator);
+	// Add button:
+	let mkDirSpan = document.createElement("span");
+	mkDirSpan.setAttribute("class", "tab");
+	let mkDirBtn = document.createElement("button");
+	mkDirBtn.setAttribute("type", "button");
+	mkDirBtn.setAttribute("class", "action-button");
+	mkDirBtn.innerHTML = "mkdir";
+	mkDirBtn.addEventListener('click', showNewDir);
+	mkDirSpan.appendChild(mkDirBtn);
+	action_list.appendChild(mkDirSpan);
+}
 
 function showNewDir() {
 	let contentList = document.getElementById("content-list");
@@ -304,7 +409,6 @@ function pushDir() {
 }
 
 function onPushDir(req) {
-	console.log(req);
 	let contentList = document.getElementById("content-list");
 	const lastRowClass = contentList.rows.item(contentList.rows.length - 1).getAttribute("class");
 
