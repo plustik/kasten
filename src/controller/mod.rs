@@ -220,6 +220,36 @@ pub async fn update_file_content(
 }
 
 /**
+ * Returnes a handle to the file in which the content of the file given by `file_id` is saved.
+ * The function checks whether the user given by `user_id` has the necessary rights to read the
+ * file and returns an Error if not.
+ */
+pub async fn get_file_content(
+    file_id: u64,
+    user_id: u64,
+    db: &Database,
+    config: &Config,
+) -> Result<std::fs::File, Error> {
+    // TODO: Refactor as soon as Result.flatten is stabilized.
+    match get_file_info(file_id, user_id, db).map(|file| {
+        // Respond with streamed file:
+        let mut file_path = config.file_location.clone();
+        file_path.push(format!("{:x}", file.id));
+        std::fs::File::open(file_path).map_err(|e| Error::from(e))
+    }) {
+        Ok(Ok(file)) => {
+            Ok(file)
+        },
+        Ok(Err(e)) => {
+            Err(e)
+        },
+        Err(err) => {
+            Err(err)
+        },
+    }
+}
+
+/**
  * Give read permissions on a given FsNode to members of a given Group.
  *
  * Adds the Group given by `group_id` to the `readable_groups` of the File or Dir given by

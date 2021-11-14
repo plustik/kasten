@@ -12,7 +12,8 @@ use crate::{
 pub fn get_routes() -> Vec<Route> {
     routes![
         add_file,
-        upload_file,
+        update_file_content,
+        get_file_content,
         get_file_info,
         update_file_infos,
         add_read_permission,
@@ -156,7 +157,7 @@ async fn update_file_infos(
  * (building a UserSession succeeds) which does not have the necessary rights for this action.
  */
 #[put("/files/<file_id>/data", data = "<file_content>")]
-async fn upload_file(
+async fn update_file_content(
     file_id: Id,
     file_content: TempFile<'_>,
     session: UserSession,
@@ -188,6 +189,43 @@ async fn upload_file(
             println!("Error when updating file content: {}", err);
             Err(Status::InternalServerError)
         }
+    }
+}
+
+
+/*
+ * Get the content of a file given by <file_id> as the response to the given request.
+ * Fails with an appropriate HTTP Status, if the cookies of the request correspond to a User
+ * (building a UserSession succeeds) which does not have the necessary rights for this action.
+ */
+#[get("/files/<file_id>/data")]
+async fn get_file_content(
+    file_id: Id,
+    session: UserSession,
+    db: &State<Database>,
+    config: &State<Config>,
+) -> Result<std::fs::File, Status> {
+
+    // TODO: Refactor as soon as Result.flatten is stabilized.
+    match controller::get_file_content(file_id.inner(), session.user_id, db, config).await {
+        Ok(file) => {
+            Ok(file)
+        },
+        Err(Error::NoSuchFile) => {
+            // TODO: Logging
+            println!("User tried to download non-existing file.");
+            return Err(Status::NotFound);
+        },
+        Err(Error::MissingAuthorization) => {
+            // TODO: Logging
+            println!("User tried to download file without the necessary rights.");
+            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+        },
+        Err(e) => {
+            // TODO: Logging
+            println!("Error on GET /rest_api/files/.../data: {}", e);
+            return Err(Status::InternalServerError);
+        },
     }
 }
 

@@ -303,7 +303,7 @@ function onUploadFile(req) {
 	let linkField = newRow.insertCell(-1);
 	linkField.setAttribute("class", "link");
 	linkField.innerHTML = '<a href="/files/' + req.id
-		+ '/blob">download</a><span class="barsep">&#160;|&#160;</span><a class="showlink" href="/files/'
+		+ '/data" download>download</a><span class="barsep">&#160;|&#160;</span><a class="showlink" href="/files/'
 		+ req.id + '/view.html">show</a>'
 }
 

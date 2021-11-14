@@ -84,7 +84,7 @@
         {% endif %}
         <td class="list"><a href="/files/{{ child.id | tohex }}/view.html">{{ child.name }}</a></td>
         <td class="link">
-          <a href="/files/{{ child.id | tohex }}/blob">download</a>
+          <a href="/rest_api/files/{{ child.id | tohex }}/data" download>download</a>
           <span class="barsep">&#160;|&#160;</span>
           <a class="showlink" href="/files/{{ child.id | tohex }}/view.html">show</a>
         </td>
