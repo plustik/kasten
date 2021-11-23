@@ -1,5 +1,4 @@
-use rand::{thread_rng, RngCore};
-use sled::{transaction::ConflictableTransactionError, Db, Transactional};
+use sled::Db;
 
 use std::{convert::TryInto, path::PathBuf, string::String};
 
@@ -25,7 +24,7 @@ pub fn filelist(args: Vec<String>) {
             Ok((id_bytes, file_bytes)) => {
                 let file_id = u64::from_be_bytes(id_bytes.as_ref().try_into().unwrap());
                 let parent_id = u64::from_be_bytes(file_bytes[0..8].try_into().unwrap());
-                let filename = String::from_utf8(Vec::from(&file_bytes[16..])).unwrap();
+                let (filename, _) = parse_db_string(&file_bytes[16..]);
 
                 println!("{:x} (<- {:x}): \t{}", file_id, parent_id, filename);
             }
@@ -79,4 +78,14 @@ fn open_db(location: &str) -> Result<Db, &'static str> {
     }
 
     Ok(sled::open(db_location.as_path()).expect("Could not open database."))
+}
+
+fn parse_db_string(bytes: &[u8]) -> (String, usize) {
+    let length = u16::from_be_bytes(bytes[0..2].try_into().unwrap()) as usize;
+
+    (
+        String::from_utf8(Vec::from(&bytes[2..(2 + length)]))
+            .expect("DB contains non-UTF-8 string."),
+        length + 2,
+    )
 }
