@@ -227,17 +227,17 @@ async fn get_file_content(
         Err(Error::NoSuchFile) => {
             // TODO: Logging
             println!("User tried to download non-existing file.");
-            return Err(Status::NotFound);
+            Err(Status::NotFound)
         }
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("User tried to download file without the necessary rights.");
-            return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
+            Err(Status::Forbidden) // Maybe Status::NotFound would be more secure?
         }
         Err(e) => {
             // TODO: Logging
             println!("Error on GET /rest_api/files/.../data: {}", e);
-            return Err(Status::InternalServerError);
+            Err(Status::InternalServerError)
         }
     }
 }

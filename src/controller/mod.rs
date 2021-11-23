@@ -240,7 +240,7 @@ pub async fn get_file_content(
         // Respond with streamed file:
         let mut file_path = config.file_location.clone();
         file_path.push(format!("{:x}", file.id));
-        std::fs::File::open(file_path).map_err(|e| Error::from(e))
+        std::fs::File::open(file_path).map_err(Error::from)
     }) {
         Ok(Ok(file)) => Ok(file),
         Ok(Err(e)) => Err(e),

@@ -114,21 +114,6 @@ impl FsDatabase {
         Ok(res)
     }
 
-    /// Checks, whether the DB contains a file with the given id.
-    fn is_file(&self, id: u64) -> sled::Result<bool> {
-        self.file_tree.contains_key(id.to_be_bytes())
-    }
-
-    /// Checks, whether the DB contains a dir with the given id.
-    fn is_dir(&self, id: u64) -> sled::Result<bool> {
-        self.dir_tree.contains_key(id.to_be_bytes())
-    }
-
-    /// Checks, whether the DB contains a file or directory with the given id.
-    fn contains_node_id(&self, id: u64) -> sled::Result<bool> {
-        Ok(self.is_file(id)? || self.is_dir(id)?)
-    }
-
     /// Inserts a new file with the given attributes in the DB. The ID of the given file will be
     /// updated to a new unique value.
     pub fn insert_new_file(&self, file: &mut File) -> Result<(), Error> {

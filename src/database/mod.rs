@@ -162,14 +162,6 @@ impl Database {
     }
 
     /**
-     * If there is a group in the DB with the name given by `groupname`, its ID is returned.
-     * Otherwise `Ok(None)` is retuned.
-     */
-    pub fn get_groupid_by_name(&self, groupname: &str) -> sled::Result<Option<u64>> {
-        self.user_db.get_groupid_by_name(groupname)
-    }
-
-    /**
      * Adds a new Group with the given fields to the database. The ID of the given Group will be
      * set to a new random and unique value.
      */
