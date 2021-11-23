@@ -1,4 +1,4 @@
-use rocket::fs::TempFile;
+use rocket::{fs::TempFile, http::MediaType};
 
 use crate::{
     config::Config,
@@ -198,13 +198,18 @@ pub async fn update_file_content(
     db: &Database,
     config: &Config,
     mut new_content: TempFile<'_>,
+    media_type: &MediaType,
 ) -> Result<File, Error> {
-    let file = db.get_file(file_id)?.ok_or(Error::NoSuchFile)?;
+    let mut file = db.get_file(file_id)?.ok_or(Error::NoSuchFile)?;
 
     // Check users permissions:
     if !file.may_write(&db.get_user(user_id)?.ok_or(Error::BadCall)?) {
         return Err(Error::MissingAuthorization);
     }
+
+    // Update files media-type:
+    file.media_type = format!("{}", media_type);
+    db.update_file(&file)?;
 
     // Move temporary file to permanent path:
     let mut new_path = config.file_location.clone();
@@ -237,15 +242,9 @@ pub async fn get_file_content(
         file_path.push(format!("{:x}", file.id));
         std::fs::File::open(file_path).map_err(|e| Error::from(e))
     }) {
-        Ok(Ok(file)) => {
-            Ok(file)
-        },
-        Ok(Err(e)) => {
-            Err(e)
-        },
-        Err(err) => {
-            Err(err)
-        },
+        Ok(Ok(file)) => Ok(file),
+        Ok(Err(e)) => Err(e),
+        Err(err) => Err(err),
     }
 }
 

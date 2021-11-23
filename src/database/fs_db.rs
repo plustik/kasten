@@ -9,8 +9,8 @@ use crate::{
 };
 
 pub struct FsDatabase {
-    file_tree: Tree,        // K: file_id, V: parent_id, owner_id, name
-    dir_tree: Tree, // K: dir_id, V: parent_id, owner_id, child_number(u16), file/dir_ids..., name
+    file_tree: Tree, // K: file_id, V: parent_id, owner_id, name_len, name, type_len, media_type
+    dir_tree: Tree,  // K: dir_id, V: parent_id, owner_id, child_number(u16), file/dir_ids..., name
     permissions_tree: Tree, // K: fs_node_id, V: read_group_number (u16), read_group_ids..., write_group_number (u16), write_group_ids...,
 }
 
@@ -40,13 +40,18 @@ impl FsDatabase {
             .file_tree
             .get(id.to_be_bytes())?
             .zip(self.permissions_tree.get(id.to_be_bytes())?)
-            .map(|(file_entry, perm_entry)| File {
-                id,
-                parent_id: u64::from_be_bytes(file_entry[0..8].try_into().unwrap()),
-                owner_id: u64::from_be_bytes(file_entry[8..16].try_into().unwrap()),
-                read_group_ids: parse_read_group_ids(&perm_entry),
-                write_group_ids: parse_write_group_ids(&perm_entry),
-                name: String::from_utf8(Vec::from(&file_entry[16..])).unwrap(),
+            .map(|(file_entry, perm_entry)| {
+                let (name, name_len) = parse_db_string(&file_entry[16..]);
+                let (media_type, _) = parse_db_string(&file_entry[(16 + name_len)..]);
+                File {
+                    id,
+                    parent_id: u64::from_be_bytes(file_entry[0..8].try_into().unwrap()),
+                    owner_id: u64::from_be_bytes(file_entry[8..16].try_into().unwrap()),
+                    read_group_ids: parse_read_group_ids(&perm_entry),
+                    write_group_ids: parse_write_group_ids(&perm_entry),
+                    name,
+                    media_type,
+                }
             }))
     }
 
@@ -136,7 +141,8 @@ impl FsDatabase {
         // Byte representation of new file:
         let mut data = Vec::from(&file.parent_id.to_be_bytes()[..]);
         data.extend_from_slice(&file.owner_id.to_be_bytes());
-        data.extend_from_slice(file.name.as_bytes());
+        string_to_bytes(&file.name, &mut data);
+        string_to_bytes(&file.media_type, &mut data);
         // Byte representation of permissions:
         let mut perm_data =
             Vec::with_capacity(4 + 8 * (file.read_group_ids.len() + file.write_group_ids.len()));
@@ -196,8 +202,8 @@ impl FsDatabase {
      * Changes the properties of the given File in the DB to the values given by the parameter
      * `file`.
      *
-     * Changeable properties include `name`, `owner_id`, read_group_ids and write_group_ids and
-     * `parent_id`. The field `id` is used to identify the file to change.
+     * Changeable properties include `name`, `owner_id`, read_group_ids and write_group_ids,
+     * `parent_id` and 'media_type'. The field `id` is used to identify the file to change.
      */
     pub fn update_file(&self, new_file: &File) -> Result<(), Error> {
         // Byte representation of permissions:
@@ -222,7 +228,9 @@ impl FsDatabase {
             // Add owner_id:
             new_bytes.extend_from_slice(&new_file.owner_id.to_be_bytes());
             // Add name:
-            new_bytes.extend_from_slice(new_file.name.as_bytes());
+            string_to_bytes(&new_file.name, &mut new_bytes);
+            // Add media_type:
+            string_to_bytes(&new_file.media_type, &mut new_bytes);
 
             // Insert new File:
             file_t.insert(&new_file.id.to_be_bytes(), new_bytes)?;
@@ -248,13 +256,16 @@ impl FsDatabase {
                     }
                 };
 
+                let (name, name_len) = parse_db_string(&bytes[16..]);
+                let (media_type, _) = parse_db_string(&bytes[(16 + name_len)..]);
                 let res = File {
                     id,
                     parent_id: u64::from_be_bytes(bytes[0..8].try_into().unwrap()),
                     owner_id: u64::from_be_bytes(bytes[8..16].try_into().unwrap()),
                     read_group_ids: Vec::new(),
                     write_group_ids: Vec::new(),
-                    name: String::from_utf8(Vec::from(&bytes[16..])).unwrap(),
+                    name,
+                    media_type,
                 };
 
                 // Remove file from parent:
@@ -631,4 +642,23 @@ fn entry_to_dir_incomplete(id: u64, bytes: &[u8]) -> Dir {
         child_ids,
         name,
     }
+}
+
+fn parse_db_string(bytes: &[u8]) -> (String, usize) {
+    let length = u16::from_be_bytes(bytes[0..2].try_into().unwrap()) as usize;
+
+    (
+        String::from_utf8(Vec::from(&bytes[2..(2 + length)]))
+            .expect("DB contains non-UTF-8 string."),
+        length + 2,
+    )
+}
+fn string_to_bytes(string: &str, buf: &mut Vec<u8>) {
+    let length: u16 = string
+        .as_bytes()
+        .len()
+        .try_into()
+        .expect("Trying to write a string to the DB, that is to long for u16.");
+    buf.extend_from_slice(&length.to_be_bytes());
+    buf.extend_from_slice(string.as_bytes());
 }

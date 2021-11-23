@@ -1,4 +1,11 @@
-use rocket::{fs::TempFile, http::Status, serde::json::Json, Route, State};
+use rocket::{
+    fs::TempFile,
+    http::{ContentType, MediaType, Status},
+    serde::json::Json,
+    Route, State,
+};
+
+use std::str::FromStr;
 
 use super::super::{FileMsg, GroupMsg};
 use crate::{
@@ -160,6 +167,7 @@ async fn update_file_infos(
 async fn update_file_content(
     file_id: Id,
     file_content: TempFile<'_>,
+    content_type: &ContentType,
     session: UserSession,
     db: &State<Database>,
     config: &State<Config>,
@@ -170,6 +178,7 @@ async fn update_file_content(
         db,
         config,
         file_content,
+        content_type.media_type(),
     )
     .await
     {
@@ -192,7 +201,6 @@ async fn update_file_content(
     }
 }
 
-
 /*
  * Get the content of a file given by <file_id> as the response to the given request.
  * Fails with an appropriate HTTP Status, if the cookies of the request correspond to a User
@@ -204,28 +212,33 @@ async fn get_file_content(
     session: UserSession,
     db: &State<Database>,
     config: &State<Config>,
-) -> Result<std::fs::File, Status> {
-
+) -> Result<(ContentType, std::fs::File), Status> {
     // TODO: Refactor as soon as Result.flatten is stabilized.
-    match controller::get_file_content(file_id.inner(), session.user_id, db, config).await {
-        Ok(file) => {
-            Ok(file)
-        },
+    match controller::get_file_content(file_id.inner(), session.user_id, db, config)
+        .await
+        .and_then(|file| {
+            let media_type = MediaType::from_str(
+                &controller::get_file_info(file_id.inner(), session.user_id, db)?.media_type,
+            )
+            .or(Err(Error::EncodingError))?;
+            Ok((ContentType(media_type), file))
+        }) {
+        Ok(file) => Ok(file),
         Err(Error::NoSuchFile) => {
             // TODO: Logging
             println!("User tried to download non-existing file.");
             return Err(Status::NotFound);
-        },
+        }
         Err(Error::MissingAuthorization) => {
             // TODO: Logging
             println!("User tried to download file without the necessary rights.");
             return Err(Status::Forbidden); // Maybe Status::NotFound would be more secure?
-        },
+        }
         Err(e) => {
             // TODO: Logging
             println!("Error on GET /rest_api/files/.../data: {}", e);
             return Err(Status::InternalServerError);
-        },
+        }
     }
 }
 

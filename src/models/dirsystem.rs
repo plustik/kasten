@@ -51,6 +51,7 @@ pub struct File {
     pub read_group_ids: Vec<u64>,
     pub write_group_ids: Vec<u64>,
     pub name: String,
+    pub media_type: String,
 }
 
 impl FsNode for File {
@@ -86,6 +87,7 @@ impl Default for File {
             read_group_ids: Vec::new(),
             write_group_ids: Vec::new(),
             name: String::from("[new_file]"),
+            media_type: String::from("*/*"),
         }
     }
 }
